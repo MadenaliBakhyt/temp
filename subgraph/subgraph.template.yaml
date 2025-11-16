@@ -1,0 +1,71 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  # TokenFactory DataSource
+  - kind: ethereum/contract
+    name: TokenFactory
+    network: {{network}}
+    source:
+      address: "{{factoryAddress}}"
+      abi: TokenFactory
+      startBlock: {{factoryStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Token
+        - User
+        - ProtocolStats
+        - DailyStats
+      abis:
+        - name: TokenFactory
+          file: ../contracts/abis/TokenFactory.json
+        - name: YourToken
+          file: ../contracts/abis/YourToken.json
+      eventHandlers:
+        - event: TokenCreated(indexed address,indexed address,string,string,uint256)
+          handler: handleTokenCreated
+      file: ./src/token-factory.ts
+
+  # SimpleSwap DataSource
+  - kind: ethereum/contract
+    name: SimpleSwap
+    network: {{network}}
+    source:
+      address: "{{swapAddress}}"
+      abi: SimpleSwap
+      startBlock: {{swapStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Token
+        - User
+        - Swap
+        - LiquidityEvent
+        - ProtocolStats
+        - DailyStats
+      abis:
+        - name: SimpleSwap
+          file: ../contracts/abis/SimpleSwap.json
+        - name: YourToken
+          file: ../contracts/abis/YourToken.json
+      eventHandlers:
+        - event: Listed(indexed address,uint256,uint256,uint256)
+          handler: handleListed
+        - event: Delisted(indexed address,uint256,uint256)
+          handler: handleDelisted
+        - event: LiquidityAdded(indexed address,indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: LiquidityRemoved(indexed address,indexed address,uint256,uint256)
+          handler: handleLiquidityRemoved
+        - event: RateUpdated(indexed address,uint256,uint256)
+          handler: handleRateUpdated
+        - event: Bought(indexed address,indexed address,uint256,uint256)
+          handler: handleBought
+        - event: Sold(indexed address,indexed address,uint256,uint256)
+          handler: handleSold
+      file: ./src/simple-swap.ts

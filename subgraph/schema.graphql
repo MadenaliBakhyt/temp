@@ -1,0 +1,178 @@
+# TokenFactory & SimpleSwap Subgraph Schema
+# This schema defines all entities indexed from on-chain events
+
+"""
+Token entity representing an ERC-20 token created by the factory
+"""
+type Token @entity {
+  id: ID! # Token address
+  name: String!
+  symbol: String!
+  decimals: Int!
+  initialSupply: BigInt!
+  cap: BigInt!
+  creator: User!
+  createdAt: BigInt!
+  createdAtBlock: BigInt!
+  txHash: Bytes!
+
+  # DEX-related fields (if listed on SimpleSwap)
+  isListed: Boolean!
+  tokenPerEth: BigInt
+  ethBalance: BigInt
+  tokenBalance: BigInt
+  listedAt: BigInt
+  listedAtBlock: BigInt
+
+  # Aggregated stats
+  totalBuyVolume: BigInt!
+  totalSellVolume: BigInt!
+  totalBuyCount: Int!
+  totalSellCount: Int!
+  totalLiquidityAdded: BigInt!
+  totalLiquidityRemoved: BigInt!
+
+  # Relations
+  swaps: [Swap!]! @derivedFrom(field: "token")
+  liquidityEvents: [LiquidityEvent!]! @derivedFrom(field: "token")
+}
+
+"""
+User entity representing a wallet address that interacts with the protocol
+"""
+type User @entity {
+  id: ID! # Wallet address (lowercase)
+
+  # Creation stats
+  tokensCreated: [Token!]! @derivedFrom(field: "creator")
+  totalTokensCreated: Int!
+  firstCreatedAt: BigInt
+  lastCreatedAt: BigInt
+
+  # Trading stats
+  swaps: [Swap!]! @derivedFrom(field: "user")
+  totalBuys: Int!
+  totalSells: Int!
+  totalBuyVolume: BigInt!
+  totalSellVolume: BigInt!
+
+  # Liquidity stats
+  liquidityEvents: [LiquidityEvent!]! @derivedFrom(field: "provider")
+  totalLiquidityAdded: BigInt!
+  totalLiquidityRemoved: BigInt!
+
+  # Activity tracking
+  firstSeenAt: BigInt!
+  lastSeenAt: BigInt!
+  totalTransactions: Int!
+}
+
+"""
+Swap entity representing a buy or sell transaction on SimpleSwap
+"""
+type Swap @entity {
+  id: ID! # Transaction hash + log index
+  token: Token!
+  user: User!
+  type: SwapType!
+  ethAmount: BigInt!
+  tokenAmount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+"""
+Type of swap transaction
+"""
+enum SwapType {
+  BUY
+  SELL
+}
+
+"""
+LiquidityEvent entity representing liquidity additions or removals
+"""
+type LiquidityEvent @entity {
+  id: ID! # Transaction hash + log index
+  token: Token!
+  provider: User!
+  type: LiquidityEventType!
+  ethAmount: BigInt!
+  tokenAmount: BigInt!
+  tokenPerEth: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+"""
+Type of liquidity event
+"""
+enum LiquidityEventType {
+  ADD
+  REMOVE
+  DELIST
+}
+
+"""
+Protocol-wide statistics (singleton entity with ID = "1")
+"""
+type ProtocolStats @entity {
+  id: ID! # Always "1"
+
+  # Token stats
+  totalTokensCreated: Int!
+  totalTokensListed: Int!
+
+  # Trading stats
+  totalSwaps: Int!
+  totalBuys: Int!
+  totalSells: Int!
+  totalVolumeETH: BigInt!
+  totalVolumeUSD: BigDecimal!
+
+  # Liquidity stats
+  totalLiquidityAddedETH: BigInt!
+  totalLiquidityRemovedETH: BigInt!
+  currentTotalLiquidityETH: BigInt!
+
+  # User stats
+  totalUsers: Int!
+  totalCreators: Int!
+  totalTraders: Int!
+  totalLiquidityProviders: Int!
+
+  # Timestamps
+  firstActivityAt: BigInt!
+  lastActivityAt: BigInt!
+  lastUpdatedBlock: BigInt!
+}
+
+"""
+Daily aggregated statistics
+"""
+type DailyStats @entity {
+  id: ID! # Day ID (timestamp / 86400)
+  date: Int! # Unix timestamp at start of day
+
+  # Token stats
+  tokensCreated: Int!
+  tokensListed: Int!
+
+  # Trading stats
+  swaps: Int!
+  buys: Int!
+  sells: Int!
+  volumeETH: BigInt!
+  volumeUSD: BigDecimal!
+  uniqueTraders: Int!
+
+  # Liquidity stats
+  liquidityAddedETH: BigInt!
+  liquidityRemovedETH: BigInt!
+
+  # Activity
+  activeUsers: Int!
+  transactions: Int!
+}

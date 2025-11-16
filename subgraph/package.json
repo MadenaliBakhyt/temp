@@ -1,0 +1,27 @@
+{
+  "name": "tokenfactory-subgraph",
+  "version": "1.0.0",
+  "description": "The Graph subgraph for TokenFactory & SimpleSwap dApp",
+  "repository": "https://github.com/yourusername/tokenfactory-subgraph",
+  "license": "MIT",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy": "graph deploy --node https://api.studio.thegraph.com/deploy/ tokenfactory-subgraph",
+    "deploy:local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 tokenfactory-subgraph",
+    "create:local": "graph create --node http://localhost:8020/ tokenfactory-subgraph",
+    "remove:local": "graph remove --node http://localhost:8020/ tokenfactory-subgraph",
+    "test": "graph test",
+    "prepare:sepolia": "mustache config/sepolia.json subgraph.template.yaml > subgraph.yaml",
+    "prepare:goerli": "mustache config/goerli.json subgraph.template.yaml > subgraph.yaml",
+    "auth": "graph auth --studio"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.56.0",
+    "@graphprotocol/graph-ts": "^0.31.0"
+  },
+  "devDependencies": {
+    "matchstick-as": "^0.6.0",
+    "mustache": "^4.2.0"
+  }
+}

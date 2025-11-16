@@ -1,0 +1,7 @@
+{
+  "network": "goerli",
+  "factoryAddress": "0x0000000000000000000000000000000000000000",
+  "swapAddress": "0x0000000000000000000000000000000000000000",
+  "factoryStartBlock": 0,
+  "swapStartBlock": 0
+}
