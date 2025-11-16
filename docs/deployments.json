@@ -1,0 +1,34 @@
+{
+  "localhost-31337": {
+    "network": "localhost",
+    "chainId": 31337,
+    "deployer": "0x...",
+    "timestamp": "",
+    "contracts": {
+      "TokenFactory": {
+        "address": "0x..."
+      },
+      "SimpleSwap": {
+        "address": "0x...",
+        "owner": "0x..."
+      }
+    },
+    "note": "Run 'npm run deploy:localhost' to populate this"
+  },
+  "sepolia-11155111": {
+    "network": "sepolia",
+    "chainId": 11155111,
+    "deployer": "0x...",
+    "timestamp": "",
+    "contracts": {
+      "TokenFactory": {
+        "address": "0x..."
+      },
+      "SimpleSwap": {
+        "address": "0x...",
+        "owner": "0x..."
+      }
+    },
+    "note": "Run 'npm run deploy:sepolia' to populate this"
+  }
+}
