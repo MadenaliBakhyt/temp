@@ -1,0 +1,66 @@
+### TokenFactory SIWE Backend - API Requests
+### Use with REST Client extension in VS Code
+
+@baseUrl = http://localhost:3001/api
+@token = your-jwt-token-here
+
+### Health Check
+GET http://localhost:3001/health
+
+### ========================================
+### Authentication Endpoints
+### ========================================
+
+### Get Nonce (Optional - can be generated client-side)
+GET {{baseUrl}}/auth/nonce
+
+### Login with SIWE
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "message": "localhost:5173 wants you to sign in with your Ethereum account:\n0x1234567890123456789012345678901234567890\n\nSign in to TokenFactory dApp\n\nURI: http://localhost:5173\nVersion: 1\nChain ID: 11155111\nNonce: abc123xyz\nIssued At: 2024-01-01T00:00:00.000Z",
+  "signature": "0x..."
+}
+
+### Verify Token
+GET {{baseUrl}}/auth/verify
+Authorization: Bearer {{token}}
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{token}}
+
+### ========================================
+### Profile Endpoints
+### ========================================
+
+### Get Profile by Address (Public)
+GET {{baseUrl}}/profile/0x1234567890123456789012345678901234567890
+
+### Get Own Profile (Authenticated)
+GET {{baseUrl}}/profile
+Authorization: Bearer {{token}}
+
+### Update Profile
+POST {{baseUrl}}/profile
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nickname": "Alice",
+  "avatarUrl": "https://avatars.githubusercontent.com/u/1?v=4"
+}
+
+### Upload Avatar (Base64)
+POST {{baseUrl}}/profile/avatar
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+}
+
+### Delete Avatar
+DELETE {{baseUrl}}/profile/avatar
+Authorization: Bearer {{token}}

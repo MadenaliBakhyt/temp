@@ -13,7 +13,7 @@ A full-stack decentralized application where users can:
 
 - ✅ **Create ERC-20 tokens** via a factory contract (custom decimals, cap, initial supply)
 - ✅ **Swap tokens for ETH** at fixed rates via a simple DEX
-- 🔲 **Manage user profiles** with Sign-In with Ethereum (SIWE)
+- ✅ **Manage user profiles** with Sign-In with Ethereum (SIWE)
 - 🔲 **View analytics** of on-chain activity via The Graph subgraph
 
 **Target Network**: Sepolia Testnet (Goerli supported)
@@ -33,8 +33,12 @@ A full-stack decentralized application where users can:
 ├── /dapp               🔲 TODO - React + Vite + TypeScript frontend
 │   └── /src/abi           (ABIs will be copied here)
 │
-├── /server             🔲 TODO - Express + SIWE backend
-│   └── /prisma            (SQLite database for profiles)
+├── /server             ✅ COMPLETE - Express + SIWE backend
+│   ├── /src               • Auth routes, profile routes
+│   │                      • SIWE verification, JWT tokens
+│   │                      • IPFS helper (mocked)
+│   ├── /prisma            • SQLite database for profiles
+│   └── README.md          • Full API documentation
 │
 ├── /subgraph           🔲 TODO - The Graph indexing
 │   └── schema.graphql     (GraphQL schema for analytics)
@@ -50,6 +54,8 @@ A full-stack decentralized application where users can:
 ## ✅ What's Been Completed
 
 ### Smart Contracts (Production-Ready)
+
+### SIWE Backend (Production-Ready)
 
 All contracts are fully implemented, tested, and documented:
 
@@ -94,7 +100,7 @@ All contracts are fully implemented, tested, and documented:
 ✅ **verify.ts** - Automated Etherscan verification
 ✅ **copy-abis.ts** - Extract ABIs for frontend integration
 
-### Documentation
+### Smart Contract Documentation
 
 ✅ **README.md** - Complete setup guide
 ✅ **QUICKSTART.md** - 5-minute quick start
@@ -178,6 +184,32 @@ npm run copy-abis
 ```
 
 This copies contract ABIs to `../dapp/src/abi/` for frontend integration.
+
+### Backend (SIWE Server)
+
+```bash
+cd server
+npm install
+cp .env.example .env
+# Edit .env with your JWT_SECRET and other configs
+
+# Set up database
+npm run prisma:generate
+npm run prisma:migrate
+npm run db:seed  # Optional: add sample users
+
+# Start server
+npm run dev
+```
+
+Server starts at: **http://localhost:3001**
+
+Test it:
+```bash
+curl http://localhost:3001/health
+```
+
+See [server/README.md](./server/README.md) for full API documentation.
 
 ## 📋 Contract Features
 
@@ -383,6 +415,17 @@ npm run node             # Start local Hardhat node
 - [x] Write documentation
 - [ ] Deploy to Sepolia (run `npm run deploy:sepolia`)
 - [ ] Verify on Etherscan (run `npm run verify:sepolia`)
+
+### For Backend ✅
+- [x] Set up Express + TypeScript
+- [x] Implement SIWE authentication
+- [x] Implement JWT session management
+- [x] Create profile management API
+- [x] Set up Prisma + SQLite
+- [x] Add IPFS helper (mock)
+- [x] Add security middleware (Helmet, CORS, rate limiting)
+- [x] Write API documentation
+- [ ] Deploy to production (Vercel/Railway/Render)
 
 ### For Frontend 🔲
 - [ ] Set up React + Vite + TypeScript
