@@ -55,8 +55,6 @@ A full-stack decentralized application where users can:
 
 ### Smart Contracts (Production-Ready)
 
-### SIWE Backend (Production-Ready)
-
 All contracts are fully implemented, tested, and documented:
 
 #### 1. **YourToken.sol** (~75 lines)
@@ -108,7 +106,61 @@ All contracts are fully implemented, tested, and documented:
 ✅ **ARCHITECTURE.md** - System architecture with diagrams
 ✅ **deployments.json** - Deployment tracking
 
-## 🚀 Quick Start (Contracts Only)
+### SIWE Backend (Production-Ready)
+
+All backend services are fully implemented:
+
+#### Authentication System (~150 lines)
+- **SIWE Verification**: Cryptographic signature verification with ethers.js
+- **JWT Sessions**: 7-day token expiry, configurable via environment
+- **Session Storage**: Database tracking for logout functionality
+- **Nonce Generation**: Cryptographically secure random nonces
+
+#### Profile Management (~180 lines)
+- **User Profiles**: Nickname (50 char max) and avatar URL
+- **IPFS Integration**: Base64 upload with 5MB limit (mock + real IPFS ready)
+- **Public Access**: View any profile by wallet address
+- **Authenticated Updates**: Only owner can update their profile
+
+#### Security & Middleware (~200 lines)
+- **Helmet**: XSS, clickjacking, and other attack protections
+- **CORS**: Configurable origin whitelist for production
+- **Rate Limiting**: 100 requests per 15 minutes per IP
+- **Zod Validation**: Type-safe request validation with detailed error messages
+- **Error Handling**: Global error handler with development/production modes
+
+#### Database (Prisma + SQLite)
+- **User Model**: walletAddress (unique), nickname, avatarUrl, timestamps
+- **Session Model**: token (unique), walletAddress, expiresAt
+- **Migrations**: Automatic schema management
+- **Seeding**: Sample data for testing
+
+#### API Endpoints
+```
+Authentication:
+  POST   /api/auth/login      - SIWE login
+  POST   /api/auth/logout     - Invalidate session
+  GET    /api/auth/verify     - Verify token
+  GET    /api/auth/nonce      - Get nonce (optional)
+
+Profile:
+  GET    /api/profile/:address - Get public profile
+  GET    /api/profile          - Get own profile (auth)
+  POST   /api/profile          - Update profile (auth)
+  POST   /api/profile/avatar   - Upload avatar (auth)
+  DELETE /api/profile/avatar   - Remove avatar (auth)
+```
+
+### Backend Documentation
+
+✅ **README.md** - Full API reference with examples
+✅ **QUICKSTART.md** - 5-minute setup guide
+✅ **ARCHITECTURE.md** - Request/response flow diagrams
+✅ **requests.http** - Sample API requests for testing
+
+## 🚀 Quick Start
+
+### Smart Contracts
 
 ### Prerequisites
 
