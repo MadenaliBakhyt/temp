@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Backend Development Service
+  backend-dev:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    container_name: tokenfactory-backend-dev
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=dev-secret-key
+      - CORS_ORIGIN=http://localhost:5173
+      - DATABASE_URL=file:/app/prisma/dev.db
+      - IPFS_MOCK=true
+      - IPFS_STORAGE_PATH=/app/uploads
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+      - backend-dev-uploads:/app/uploads
+    networks:
+      - tokenfactory-dev
+    command: npm run dev
+
+  # Frontend Development Service
+  frontend-dev:
+    build:
+      context: ./dapp
+      dockerfile: Dockerfile.dev
+    container_name: tokenfactory-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_CHAIN_ID=11155111
+      - VITE_FACTORY_ADDRESS=${VITE_FACTORY_ADDRESS}
+      - VITE_SWAP_ADDRESS=${VITE_SWAP_ADDRESS}
+      - VITE_BACKEND_URL=http://localhost:3001/api
+      - VITE_SUBGRAPH_URL=${VITE_SUBGRAPH_URL}
+    volumes:
+      - ./dapp:/app
+      - /app/node_modules
+    networks:
+      - tokenfactory-dev
+    command: npm run dev -- --host
+
+networks:
+  tokenfactory-dev:
+    driver: bridge
+
+volumes:
+  backend-dev-uploads:
+    driver: local

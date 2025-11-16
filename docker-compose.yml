@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Backend Service (SIWE API)
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: tokenfactory-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-change-in-production}
+      - SESSION_EXPIRY=7d
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - DATABASE_URL=file:/app/data/dev.db
+      - IPFS_MOCK=true
+      - IPFS_STORAGE_PATH=/app/uploads
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
+    volumes:
+      - backend-data:/app/data
+      - backend-uploads:/app/uploads
+    networks:
+      - tokenfactory-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Service (React App)
+  frontend:
+    build:
+      context: ./dapp
+      dockerfile: Dockerfile
+      args:
+        - VITE_CHAIN_ID=${VITE_CHAIN_ID:-11155111}
+        - VITE_FACTORY_ADDRESS=${VITE_FACTORY_ADDRESS}
+        - VITE_SWAP_ADDRESS=${VITE_SWAP_ADDRESS}
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:3001/api}
+        - VITE_SUBGRAPH_URL=${VITE_SUBGRAPH_URL}
+    container_name: tokenfactory-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - tokenfactory-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  tokenfactory-network:
+    driver: bridge
+
+volumes:
+  backend-data:
+    driver: local
+  backend-uploads:
+    driver: local
