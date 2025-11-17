@@ -145,3 +145,173 @@ Astana, 2025
 8. [Bibliography](#8-bibliography)
 
 ---
+
+# 1. Introduction
+
+## 1.1. Selecting the Research Topic and Justifying Relevance
+
+The rapid evolution of blockchain technology and decentralized finance (DeFi) has fundamentally transformed the landscape of financial services and digital asset management. Traditional centralized financial systems face inherent challenges including single points of failure, limited transparency, restricted access, and dependency on intermediary institutions. Blockchain-based decentralized applications (dApps) address these limitations by providing trustless, transparent, and permissionless financial infrastructure that operates without central authority.
+
+The emergence of Ethereum and smart contract platforms has enabled the creation of programmable financial protocols that automate complex transactions, enforce agreements through code, and eliminate intermediaries. Within this ecosystem, token factories and decentralized exchanges (DEXs) represent foundational primitives that enable users to create custom digital assets and exchange them in a peer-to-peer manner without relying on centralized exchanges or custodial services.
+
+Despite the proliferation of DeFi protocols, several critical challenges persist in the current landscape:
+
+**1. Complexity and Accessibility:** Most existing DeFi platforms present steep learning curves for new users, with complex interfaces, technical jargon, and fragmented user experiences across multiple protocols. The process of creating tokens often requires deep technical knowledge of smart contract development, deployment, and verification.
+
+**2. Security Vulnerabilities:** Smart contract exploits have resulted in billions of dollars in losses, with common vulnerabilities including reentrancy attacks, integer overflows, access control failures, and economic manipulation. Many projects lack comprehensive security audits and fail to implement established security patterns.
+
+**3. Lack of Transparency and Auditability:** While blockchain transactions are public, understanding protocol behavior, token economics, and historical activity patterns requires specialized tools and technical expertise. Users cannot easily verify the fairness of exchange rates, track liquidity changes, or audit protocol operations without external indexing services.
+
+**4. Privacy and Authentication Challenges:** Traditional Web2 authentication models conflict with Web3 principles of self-sovereignty and privacy. Users face challenges in managing decentralized identities while maintaining control over personal data. Most DeFi protocols lack integrated user profile systems that respect privacy while enabling personalized experiences.
+
+**5. Centralization in Deployment and Infrastructure:** Many supposedly decentralized applications rely heavily on centralized cloud services, third-party RPC providers, and proprietary infrastructure. This creates single points of failure, vendor lock-in, and compromises the core promise of decentralization.
+
+The relevance of this research lies in addressing these challenges through the development of a comprehensive, production-ready full-stack decentralized finance application that integrates:
+
+- **Secure Smart Contracts:** Implementation of token creation and exchange mechanisms using battle-tested security patterns from OpenZeppelin, including ReentrancyGuard, SafeERC20, and Ownable access control.
+
+- **User-Centric Authentication:** Integration of Sign-In with Ethereum (SIWE) for cryptographically secure, privacy-preserving authentication that eliminates password vulnerabilities and gives users full control over their identities.
+
+- **Transparent On-Chain Analytics:** Deployment of The Graph subgraph for real-time indexing and querying of blockchain events, enabling users to analyze trading patterns, liquidity movements, and protocol statistics without centralized dependencies.
+
+- **Self-Hosted Infrastructure:** Complete containerization and deployment automation enabling institutions and developers to run the entire stack independently, reducing reliance on third-party services and enhancing data sovereignty.
+
+For Kazakhstan's emerging blockchain ecosystem, this research contributes to the national strategy of digital transformation and technological independence. As educational institutions and enterprises seek to adopt blockchain technologies, locally developed, well-documented, and security-audited solutions become essential. The project demonstrates how modern Web3 technologies can be integrated into a cohesive system suitable for academic research, entrepreneurial ventures, and institutional deployment.
+
+Globally, the development of transparent, secure, and accessible DeFi infrastructure aligns with the broader movement toward financial inclusion and democratization of financial services. By providing a reference implementation that combines smart contract development, Web3 authentication, decentralized indexing, and modern DevOps practices, this research contributes to the body of knowledge on full-stack blockchain application development.
+
+The technical novelty of this work lies in its holistic approach: rather than focusing on isolated components, the research integrates four distinct technological layers (smart contracts, backend services, frontend interfaces, and blockchain indexing) into a unified, interoperable system. This integration demonstrates how different Web3 primitives can work together to create user-friendly, secure, and transparent financial applications.
+
+Furthermore, the emphasis on explainability, documentation, and reproducibility makes this research valuable for both academic and practical purposes. The complete source code, comprehensive testing suite, deployment automation, and detailed documentation enable others to learn from, extend, and deploy similar systems in diverse contexts.
+
+## 1.2. Setting Goals and Objectives, Defining the Object and Subject of the Study
+
+The **overall goal** of this research practice is to design, implement, test, and deploy a complete full-stack decentralized finance application that enables users to create ERC-20 tokens and exchange them through a simple decentralized exchange mechanism, while maintaining high standards of security, transparency, and usability.
+
+### Primary Objectives
+
+The research practice pursues the following specific objectives:
+
+**1. Smart Contract Layer Development**
+   - Design and implement three production-ready smart contracts:
+     - **YourToken.sol**: An ERC-20 token with configurable decimals, initial supply, and maximum cap
+     - **TokenFactory.sol**: A factory contract using the factory pattern to deploy token instances
+     - **SimpleSwap.sol**: A decentralized exchange with fixed exchange rates and liquidity management
+   - Integrate security best practices including OpenZeppelin 5.0 libraries, ReentrancyGuard, SafeERC20, and access control mechanisms
+   - Develop comprehensive test coverage with at least 50 unit and integration tests
+   - Deploy contracts to Sepolia testnet and verify on Etherscan
+
+**2. Backend Service Implementation**
+   - Implement Sign-In with Ethereum (SIWE) authentication protocol for cryptographic user authentication
+   - Develop JWT-based session management system with configurable expiration
+   - Create user profile management API with nickname and avatar storage
+   - Integrate Prisma ORM with SQLite database for data persistence
+   - Implement security middleware including Helmet, CORS, rate limiting, and input validation
+
+**3. Frontend Application Development**
+   - Build React 18 application using Vite build tool and TypeScript
+   - Integrate wagmi 2.5+ and viem 2.7+ libraries for Ethereum interactions
+   - Implement wallet connection supporting MetaMask and WalletConnect
+   - Create seven functional pages: Home, CreateToken, Swap, Admin, Profile, Balances, Analytics
+   - Develop custom React hooks for contract interactions and authentication
+   - Apply Tailwind CSS for responsive, modern user interface design
+
+**4. Blockchain Data Indexing**
+   - Design GraphQL schema with six entity types for comprehensive event tracking
+   - Implement AssemblyScript event handlers for TokenFactory and SimpleSwap events
+   - Deploy subgraph to The Graph Studio for decentralized data indexing
+   - Create automated deployment scripts for multi-network support
+   - Develop example queries demonstrating analytics capabilities
+
+**5. DevOps and Deployment Automation**
+   - Containerize all services using Docker with multi-stage builds
+   - Create docker-compose configurations for development and production environments
+   - Write comprehensive deployment documentation
+   - Implement automated ABI extraction and configuration management
+   - Develop production-ready deployment guides for Sepolia testnet
+
+**6. Documentation and Knowledge Transfer**
+   - Produce detailed technical documentation for each system component
+   - Create step-by-step setup guides for developers
+   - Write API reference documentation
+   - Prepare research practice report following academic standards
+   - Publish complete codebase with permissive open-source license
+
+### Research Object and Subject
+
+The **object** of this research is the complete full-stack decentralized application ecosystem, comprising smart contracts, backend services, frontend interfaces, and blockchain indexing infrastructure that together enable trustless token creation and exchange.
+
+The **subject** of this research is the integration methodology, architectural patterns, and implementation techniques that combine Web3 technologies (smart contracts, SIWE authentication, The Graph indexing) with traditional web development practices (REST APIs, React frameworks, containerization) to create a secure, user-friendly, and production-ready DeFi application.
+
+### Scope and Boundaries
+
+This research practice focuses specifically on:
+
+**In Scope:**
+- ERC-20 token standard implementation with factory pattern
+- Fixed-rate DEX mechanism (not automated market maker)
+- Sepolia testnet deployment (not mainnet)
+- Self-hosted infrastructure (not managed cloud services)
+- Mock IPFS implementation (not full IPFS network integration)
+- Single-chain deployment (Ethereum Sepolia)
+
+**Out of Scope:**
+- Automated market maker (AMM) algorithms
+- Cross-chain bridge implementation
+- Mainnet deployment and economic security analysis
+- Governance token mechanisms
+- Advanced DeFi primitives (lending, yield farming, etc.)
+- Mobile application development
+
+### Expected Outcomes
+
+Upon completion of the research practice, the following deliverables are expected:
+
+1. **Functional Software System:**
+   - Three deployed and verified smart contracts on Sepolia testnet
+   - Running backend server with authentication and profile management
+   - Deployed frontend application accessible via web browser
+   - Active subgraph indexing on-chain events
+
+2. **Technical Documentation:**
+   - Complete README files for each component
+   - API documentation with request/response examples
+   - Deployment guides for local and testnet environments
+   - Architecture diagrams and data flow illustrations
+
+3. **Testing Artifacts:**
+   - Smart contract test suite with >50 tests and detailed coverage reports
+   - Integration test scenarios demonstrating end-to-end workflows
+   - Security analysis documenting potential vulnerabilities and mitigations
+
+4. **Research Outputs:**
+   - Comprehensive research practice report following academic format
+   - Technical presentation materials
+   - Published GitHub repository with complete source code
+
+### Methodological Approach
+
+The research follows an iterative development methodology combining elements of agile software development with rigorous academic research standards:
+
+1. **Literature Review Phase:** Systematic review of existing DeFi protocols, smart contract security patterns, Web3 authentication methods, and blockchain indexing solutions.
+
+2. **Design Phase:** Architecture design following separation of concerns, defining interfaces between components, and planning security measures.
+
+3. **Implementation Phase:** Incremental development with continuous integration, following test-driven development practices where applicable.
+
+4. **Testing Phase:** Comprehensive testing at unit, integration, and system levels, including security audits and performance benchmarking.
+
+5. **Deployment Phase:** Progressive deployment from local environment to testnet, with monitoring and validation of system behavior.
+
+6. **Documentation Phase:** Continuous documentation throughout development, culminating in final report preparation and knowledge transfer.
+
+The success criteria for this research practice include:
+- All smart contracts pass comprehensive test suites and are deployed to Sepolia testnet
+- Backend API responds to all defined endpoints with proper authentication and error handling
+- Frontend application successfully connects to MetaMask and executes all core workflows
+- Subgraph indexes all relevant events and responds to GraphQL queries
+- Complete documentation enables independent reproduction of the system
+- Final report meets academic standards for research practice documentation
+
+By achieving these objectives, the research practice contributes both practical software artifacts and theoretical insights into full-stack blockchain application development, serving as a reference implementation for future Web3 projects in Kazakhstan and beyond.
+
