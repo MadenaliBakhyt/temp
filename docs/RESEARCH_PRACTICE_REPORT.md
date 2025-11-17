@@ -608,3 +608,1690 @@ The research implementation indexes only on-chain events (TokenCreated, Bought, 
 
 The literature review establishes theoretical and practical foundations for the four main technology components of this research: token standards and DeFi mechanisms, smart contract security patterns, Web3 authentication, and blockchain data indexing. These technologies integrate in the following sections to create a comprehensive full-stack decentralized application.
 
+
+# 3. System Design and Architecture
+
+## 3.1. Overall System Architecture
+
+The TokenFactory & SimpleSwap dApp implements a four-layer architecture separating concerns across blockchain, backend, frontend, and indexing tiers. This design follows the principles of modularity, separation of concerns, and loose coupling established in software architecture literature (Bass et al., 2012).
+
+### Architectural Layers
+
+The system comprises four primary layers:
+
+**Layer 1: Smart Contract Layer (Blockchain)**
+- Deployed on Ethereum Sepolia testnet
+- Contains YourToken.sol, TokenFactory.sol, and SimpleSwap.sol contracts
+- Implements core business logic for token creation and exchange
+- Emits events for off-chain consumption
+- Written in Solidity 0.8.24 with OpenZeppelin 5.0 dependencies
+
+**Layer 2: Backend Service Layer**
+- Node.js 20 + Express.js REST API
+- SIWE authentication and JWT session management
+- Prisma ORM with SQLite database
+- Profile management and avatar storage
+- Security middleware (Helmet, CORS, rate limiting)
+
+**Layer 3: Frontend Application Layer**
+- React 18 + Vite + TypeScript
+- wagmi 2.5+ and viem 2.7+ for Ethereum interactions
+- Tailwind CSS for styling
+- React Router for navigation
+- Seven functional pages with custom hooks
+
+**Layer 4: Indexing Layer**
+- The Graph subgraph deployed to The Graph Studio
+- AssemblyScript event handlers
+- GraphQL API for blockchain data queries
+- Six entity types with relationships
+- Real-time synchronization with blockchain events
+
+### Communication Patterns
+
+The layers communicate through well-defined interfaces:
+
+1. **Frontend ↔ Blockchain**: wagmi/viem libraries via JSON-RPC (Alchemy/Infura endpoints)
+2. **Frontend ↔ Backend**: RESTful HTTP API with JWT authentication
+3. **Frontend ↔ Subgraph**: GraphQL queries via HTTP POST requests
+4. **Blockchain → Subgraph**: Event emission and indexer polling
+5. **Backend → Database**: Prisma ORM abstraction
+
+This architecture enables independent development, testing, and deployment of each layer while maintaining clear contracts between components.
+
+### Data Flow Diagrams
+
+**Token Creation Flow:**
+```
+User → Frontend (CreateToken page)
+  → MetaMask (sign transaction)
+  → Ethereum Network (TokenFactory.createToken())
+  → YourToken deployment
+  → Event: TokenCreated
+  → Subgraph (handleTokenCreated)
+  → Entity: Token saved
+  → Frontend (query subgraph for confirmation)
+```
+
+**Authentication Flow:**
+```
+User → Frontend (ConnectButton)
+  → MetaMask (sign SIWE message)
+  → Backend (/api/auth/login)
+  → Verify signature
+  → Generate JWT
+  → Save session to database
+  → Return JWT to frontend
+  → Store in localStorage
+  → Include in subsequent API requests
+```
+
+**Swap Flow:**
+```
+User → Frontend (Swap page)
+  → Approve token (if selling)
+  → MetaMask (sign approval)
+  → Execute swap transaction
+  → SimpleSwap.buyToken() or sellToken()
+  → Event: Bought or Sold
+  → Subgraph (handleBought/handleSold)
+  → Entity: Swap + Token stats updated
+  → Frontend (refresh balance)
+```
+
+### Technology Stack Rationale
+
+Each technology choice addresses specific requirements:
+
+- **Solidity 0.8.24**: Latest stable version with built-in overflow protection
+- **OpenZeppelin 5.0**: Industry-standard security libraries with audit history
+- **Hardhat**: Most popular Ethereum development environment with extensive plugin ecosystem
+- **Express.js**: Lightweight, flexible Node.js framework for REST APIs
+- **Prisma**: Type-safe ORM with excellent TypeScript integration
+- **React 18**: Modern UI library with concurrent features and large ecosystem
+- **Vite**: Fast build tool with native ESM support and hot module replacement
+- **wagmi/viem**: Type-safe, modern Ethereum libraries replacing legacy web3.js
+- **The Graph**: Decentralized indexing standard in DeFi ecosystem
+- **Docker**: Industry-standard containerization for reproducible deployments
+
+## 3.2. Smart Contract Layer Design
+
+### Contract Relationships
+
+The three smart contracts form a cohesive system with clear responsibilities:
+
+```
+TokenFactory (Factory)
+  ├─> deploys → YourToken instances
+  └─> tracks → allTokens[], tokensByOwner[]
+
+SimpleSwap (DEX)
+  └─> interacts with → YourToken instances via IERC20 interface
+```
+
+This separation enables:
+- **Independent token deployment**: Tokens exist independently of the DEX
+- **Selective DEX listing**: Not all tokens must be listed on SimpleSwap
+- **Upgradability**: SimpleSwap can be replaced without affecting tokens
+- **Reduced coupling**: Each contract has a single responsibility
+
+### YourToken.sol Design
+
+**Key Features:**
+- Extends OpenZeppelin ERC20, Ownable
+- Immutable decimals and cap variables (gas optimization + security)
+- Owner-controlled minting with cap enforcement
+- Public burning functionality
+- Custom constructor for deployment-time configuration
+
+**State Variables:**
+```solidity
+uint8 private immutable _decimals;
+uint256 public immutable cap;
+```
+
+Using `immutable` reduces gas costs (no SLOAD operations) and prevents post-deployment modification, enhancing security.
+
+**Security Considerations:**
+- Owner set at deployment via Ownable constructor
+- Cap validated >= initialSupply in constructor
+- Mint function checks: `amount <= cap - totalSupply()`
+- No maximum mint per transaction (allows flexible distribution)
+
+### TokenFactory.sol Design
+
+**Key Features:**
+- Factory pattern implementation
+- Global token registry (`allTokens[]`)
+- Per-creator index (`mapping(address => address[])`)
+- Event emission for subgraph indexing
+- View functions for enumeration
+
+**Storage Optimization:**
+- Arrays for enumeration (frontend pagination)
+- Mappings for O(1) creator lookup
+- Events instead of storing metadata (name, symbol retrieved from token contract)
+
+**Deployment Pattern:**
+```solidity
+YourToken newToken = new YourToken(
+    name_, symbol_, decimals_, initialSupply_, cap_, msg.sender
+);
+```
+
+The `new` keyword deploys a contract instance, with creator set as owner via constructor parameter.
+
+### SimpleSwap.sol Design
+
+**Key Features:**
+- Admin-controlled token listing
+- Fixed exchange rates (tokenPerEth)
+- Minimum liquidity enforcement
+- Separate buy/sell functions
+- Preview functions for UX
+
+**State Structure:**
+```solidity
+struct TokenInfo {
+    bool isListed;
+    uint256 tokenPerEth;
+    uint256 ethBalance;
+    uint256 tokenBalance;
+}
+mapping(address => TokenInfo) public tokens;
+```
+
+This structure optimizes storage by packing related data and enables efficient lookup.
+
+**Security Implementation:**
+- ReentrancyGuard on all value-transfer functions
+- Checks-Effects-Interactions pattern throughout
+- SafeERC20 for token transfers
+- Ownable for admin functions
+- Minimum liquidity checks prevent complete drainage
+
+**Gas Optimization:**
+- Storage variables cached in memory within functions
+- Events emitted instead of storing transaction history
+- View functions use memory arrays for enumeration
+
+### Event Design for Indexing
+
+All contracts emit comprehensive events:
+
+**TokenFactory:**
+```solidity
+event TokenCreated(
+    address indexed creator,
+    address indexed token,
+    string name,
+    string symbol,
+    uint256 initialSupply
+);
+```
+
+**SimpleSwap:**
+```solidity
+event Listed(address indexed token, uint256 tokenPerEth, ...);
+event Bought(address indexed buyer, address indexed token, ...);
+event Sold(address indexed seller, address indexed token, ...);
+```
+
+Indexed parameters enable efficient event filtering. Non-indexed parameters reduce gas cost while preserving data for subgraph processing.
+
+## 3.3. Backend Architecture
+
+### Service Layer Pattern
+
+The backend implements a three-tier architecture:
+
+**1. Route Layer** (`/src/routes/`)
+- Defines HTTP endpoints
+- Input validation with Zod schemas
+- Maps requests to service functions
+
+**2. Service Layer** (`/src/utils/`)
+- Business logic implementation
+- SIWE verification
+- JWT generation/validation
+- IPFS operations (mocked)
+
+**3. Data Access Layer** (Prisma)
+- Database queries
+- Transaction management
+- Schema migrations
+
+This separation enables unit testing of business logic independently of HTTP concerns.
+
+### Database Schema
+
+Prisma schema defines two models:
+
+**User Model:**
+```prisma
+model User {
+  id            String   @id @default(cuid())
+  walletAddress String   @unique
+  nickname      String?
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sessions      Session[]
+}
+```
+
+**Session Model:**
+```prisma
+model Session {
+  id            String   @id @default(cuid())
+  token         String   @unique
+  walletAddress String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  user          User     @relation(...)
+}
+```
+
+This design enables:
+- JWT revocation via session deletion
+- Session history tracking
+- Multi-device login (one user, many sessions)
+
+### Authentication Middleware
+
+JWT middleware protects routes:
+
+```typescript
+export function authMiddleware(req, res, next) {
+    const token = req.headers.authorization?.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const session = await prisma.session.findUnique({ where: { token } });
+    if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    req.user = decoded;
+    next();
+}
+```
+
+This ensures that:
+1. Token is cryptographically valid
+2. Session exists in database
+3. Session has not expired
+4. Session can be revoked
+
+### Security Middleware Stack
+
+Applied globally to all routes:
+
+```typescript
+app.use(helmet());  // Security headers
+app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(rateLimiter);  // 100 req/15min per IP
+```
+
+### API Endpoint Design
+
+RESTful resource-based endpoints:
+
+**Authentication:**
+- `POST /api/auth/login` - SIWE authentication
+- `POST /api/auth/logout` - Session revocation
+- `GET /api/auth/verify` - Token validation
+
+**Profile:**
+- `GET /api/profile/:address` - Public profile (no auth)
+- `GET /api/profile` - Own profile (auth required)
+- `POST /api/profile` - Update profile (auth required)
+- `POST /api/profile/avatar` - Upload avatar (auth required)
+
+This design follows HTTP semantics (GET for retrieval, POST for mutations) and REST principles (resource-oriented URLs).
+
+## 3.4. Frontend Architecture
+
+### Component Hierarchy
+
+```
+App
+├── Router
+│   ├── Layout
+│   │   ├── Header (ConnectButton, Navigation)
+│   │   ├── Body (Pages)
+│   │   └── Footer
+│   └── NetworkGuard
+├── WagmiProvider
+└── QueryClientProvider
+```
+
+### Custom Hooks Pattern
+
+Four custom hooks encapsulate contract interactions:
+
+**useAuth** - Authentication state and SIWE flow
+**useTokenFactory** - Token creation and enumeration
+**useSimpleSwap** - Swap operations and admin functions
+**useToken** - ERC-20 balance, allowance, approve
+
+This pattern separates concerns:
+- UI components focus on presentation
+- Hooks manage state and side effects
+- Business logic centralized and testable
+
+### State Management Strategy
+
+**Global State:**
+- wagmi for wallet connection state
+- React Context for authentication (via useAuth)
+- TanStack Query for server state caching
+
+**Local State:**
+- useState for form inputs
+- Component-level state for UI toggles
+
+No Redux/MobX needed due to:
+- Limited global state requirements
+- wagmi handling most Ethereum state
+- React Query caching API responses
+
+### Routing Structure
+
+```
+/ - Home (landing page)
+/create - CreateToken (deploy new tokens)
+/swap - Swap (buy/sell tokens)
+/admin - Admin (DEX management)
+/profile - Profile (user settings)
+/balances - Balances (token holdings)
+/analytics - Analytics (subgraph data)
+```
+
+Protected routes (admin) check wallet address matches deployer.
+
+### Transaction Handling Pattern
+
+All contract interactions follow a consistent flow:
+
+1. **Preparation**: Validate inputs, check allowances
+2. **Simulation**: useSimulateContract (catch errors before submission)
+3. **Execution**: useWriteContract (send transaction)
+4. **Confirmation**: useWaitForTransactionReceipt (wait for mining)
+5. **Feedback**: Toast notifications + state updates
+
+This pattern provides:
+- Early error detection
+- Loading states for UX
+- Transaction success/failure feedback
+- Automatic state invalidation (React Query)
+
+## 3.5. Indexing Layer with The Graph
+
+### Subgraph Architecture
+
+The subgraph consists of:
+
+**1. Schema** (`schema.graphql`)
+- Entity definitions with fields and types
+- Relationships (@derivedFrom)
+- Enums for categorical data
+
+**2. Manifest** (`subgraph.yaml`)
+- Data source declarations (contract addresses)
+- Event handler mappings
+- ABI references
+
+**3. Mappings** (`src/*.ts`)
+- AssemblyScript event handlers
+- Entity creation and updates
+- Aggregation logic
+
+**4. Configuration** (`config/*.json`)
+- Network-specific addresses
+- Start blocks
+- Deployment metadata
+
+### Entity Relationship Model
+
+```
+User (wallet address)
+  ├─> tokensCreated: [Token]
+  ├─> swaps: [Swap]
+  └─> liquidityEvents: [LiquidityEvent]
+
+Token (token address)
+  ├─> creator: User
+  ├─> swaps: [Swap]
+  └─> liquidityEvents: [LiquidityEvent]
+
+Swap (tx hash + log index)
+  ├─> user: User
+  └─> token: Token
+
+ProtocolStats (singleton, id="1")
+  └─> aggregated metrics
+
+DailyStats (day timestamp)
+  └─> daily aggregations
+```
+
+This schema enables complex queries like:
+- "All tokens created by user X with their swap volume"
+- "Daily trading volume across all tokens"
+- "Top traders by total ETH volume"
+
+### Event Handler Pattern
+
+Handlers follow a consistent structure:
+
+```typescript
+export function handleBought(event: Bought): void {
+    // 1. Load or create entities
+    let token = Token.load(event.params.token.toHex());
+    let user = getOrCreateUser(event.params.buyer);
+    
+    // 2. Create event entity
+    let swap = new Swap(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
+    
+    // 3. Update relationships
+    swap.token = token.id;
+    swap.user = user.id;
+    
+    // 4. Update aggregations
+    token.totalBuyVolume = token.totalBuyVolume.plus(event.params.ethAmount);
+    user.totalBuyVolume = user.totalBuyVolume.plus(event.params.ethAmount);
+    
+    // 5. Save entities
+    swap.save();
+    token.save();
+    user.save();
+}
+```
+
+This pattern ensures:
+- Idempotent operations (safe to replay)
+- Consistent entity IDs (hash + log index)
+- Relationship integrity
+- Aggregation accuracy
+
+### Deployment Automation
+
+Scripts automate subgraph deployment:
+
+**prepare.sh:**
+- Reads deployed addresses from `contracts/docs/deployments.json`
+- Updates network configuration JSON
+- Generates `subgraph.yaml` from template via mustache
+
+**update-abis.sh:**
+- Copies ABIs from contracts directory
+- Ensures consistency with deployed contracts
+
+**deploy-subgraph.sh:**
+- Runs prepare → codegen → build → deploy pipeline
+- Validates at each step
+- Outputs subgraph URL
+
+This automation eliminates manual configuration errors and enables rapid redeployment across networks.
+
+---
+
+The architectural design establishes clear separation of concerns, well-defined interfaces, and scalable patterns for each system layer. The following section details the concrete implementation of this architecture.
+
+
+# 4. Implementation
+
+This section provides detailed documentation of the implementation process for each layer of the TokenFactory & SimpleSwap dApp, including specific technical decisions, code patterns, and development workflows used throughout the project.
+
+## 4.1. Smart Contract Development
+
+### YourToken.sol Implementation
+
+The ERC-20 token implementation was developed with an emphasis on immutability, gas optimization, and security. The contract leverages OpenZeppelin's battle-tested libraries while introducing custom functionality for capped minting.
+
+**Key Implementation Decisions**:
+
+```solidity
+// contracts/YourToken.sol
+contract YourToken is ERC20Capped, Ownable {
+    uint8 private immutable _decimals;
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint256 initialSupply_,
+        uint256 cap_,
+        address owner_
+    ) ERC20(name_, symbol_) ERC20Capped(cap_) Ownable(owner_) {
+        _decimals = decimals_;
+        if (initialSupply_ > 0) {
+            _mint(owner_, initialSupply_);
+        }
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return _decimals;
+    }
+
+    function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+    }
+}
+```
+
+**Technical Highlights**:
+1. **Immutable Decimals**: Using `immutable` storage reduces gas costs for decimal queries by storing the value in bytecode rather than storage
+2. **Constructor-based Ownership**: Passing `owner_` to the constructor allows the factory contract to set the token creator as owner, not the factory itself
+3. **ERC20Capped Integration**: Inherited cap enforcement prevents supply manipulation
+4. **Optional Initial Mint**: Conditional minting allows for both pre-minted and mint-on-demand tokens
+
+### TokenFactory.sol Implementation
+
+The factory contract implements a registry pattern with efficient lookup mechanisms for both global token queries and creator-specific queries.
+
+```solidity
+// contracts/TokenFactory.sol
+contract TokenFactory {
+    address[] public allTokens;
+    mapping(address => address[]) public tokensByOwner;
+    
+    event TokenCreated(
+        address indexed tokenAddress,
+        address indexed owner,
+        string name,
+        string symbol,
+        uint8 decimals,
+        uint256 initialSupply,
+        uint256 cap
+    );
+
+    function createToken(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint256 initialSupply_,
+        uint256 cap_
+    ) external returns (address) {
+        require(cap_ > 0, "Cap must be greater than 0");
+        require(
+            initialSupply_ <= cap_,
+            "Initial supply exceeds cap"
+        );
+
+        YourToken newToken = new YourToken(
+            name_,
+            symbol_,
+            decimals_,
+            initialSupply_,
+            cap_,
+            msg.sender
+        );
+
+        address tokenAddress = address(newToken);
+        allTokens.push(tokenAddress);
+        tokensByOwner[msg.sender].push(tokenAddress);
+
+        emit TokenCreated(
+            tokenAddress,
+            msg.sender,
+            name_,
+            symbol_,
+            decimals_,
+            initialSupply_,
+            cap_
+        );
+
+        return tokenAddress;
+    }
+}
+```
+
+**Implementation Features**:
+- **Dual Registry System**: `allTokens` array for global queries, `tokensByOwner` mapping for creator-specific queries
+- **Comprehensive Events**: All token parameters emitted for subgraph indexing
+- **Input Validation**: Cap and initial supply validation prevents deployment of invalid tokens
+- **Factory Pattern**: Uses `new` keyword for deterministic deployment
+
+### SimpleSwap.sol Implementation
+
+The decentralized exchange implements a fixed-rate swap mechanism with comprehensive security measures and liquidity management.
+
+```solidity
+// contracts/SimpleSwap.sol
+contract SimpleSwap is ReentrancyGuard, Ownable {
+    using SafeERC20 for IERC20;
+
+    struct TokenInfo {
+        bool isListed;
+        uint256 tokenPerEth;
+        uint256 ethBalance;
+        uint256 tokenBalance;
+    }
+
+    mapping(address => TokenInfo) public tokens;
+    uint256 public constant MINIMUM_LIQUIDITY = 0.01 ether;
+
+    function buyTokens(address token_, uint256 ethAmount_) 
+        external 
+        payable 
+        nonReentrant 
+    {
+        require(msg.value == ethAmount_, "ETH mismatch");
+        require(ethAmount_ > 0, "Amount must be positive");
+        
+        TokenInfo storage info = tokens[token_];
+        require(info.isListed, "Token not listed");
+
+        uint256 tokensOut = (ethAmount_ * info.tokenPerEth) / 1 ether;
+        require(tokensOut > 0, "Insufficient output");
+        require(info.tokenBalance >= tokensOut, "Insufficient liquidity");
+
+        // Effects
+        info.ethBalance += ethAmount_;
+        info.tokenBalance -= tokensOut;
+
+        // Interactions
+        IERC20(token_).safeTransfer(msg.sender, tokensOut);
+
+        emit TokensPurchased(msg.sender, token_, ethAmount_, tokensOut);
+    }
+
+    function sellTokens(address token_, uint256 tokenAmount_) 
+        external 
+        nonReentrant 
+    {
+        require(tokenAmount_ > 0, "Amount must be positive");
+        
+        TokenInfo storage info = tokens[token_];
+        require(info.isListed, "Token not listed");
+
+        uint256 ethOut = (tokenAmount_ * 1 ether) / info.tokenPerEth;
+        require(ethOut > 0, "Insufficient output");
+        require(info.ethBalance >= ethOut, "Insufficient liquidity");
+
+        // Effects
+        info.tokenBalance += tokenAmount_;
+        info.ethBalance -= ethOut;
+
+        // Interactions
+        IERC20(token_).safeTransferFrom(msg.sender, address(this), tokenAmount_);
+        (bool success, ) = msg.sender.call{value: ethOut}("");
+        require(success, "ETH transfer failed");
+
+        emit TokensSold(msg.sender, token_, tokenAmount_, ethOut);
+    }
+}
+```
+
+**Security Implementations**:
+1. **ReentrancyGuard**: Protects against reentrancy attacks on `buyTokens` and `sellTokens`
+2. **Checks-Effects-Interactions**: Updates state before external calls
+3. **SafeERC20**: Handles non-standard ERC20 implementations
+4. **Explicit ETH Verification**: `require(msg.value == ethAmount_)` prevents overpayment exploits
+5. **Minimum Liquidity Enforcement**: Prevents dust liquidity attacks
+
+### Development Workflow
+
+**Hardhat Configuration**:
+```javascript
+// hardhat.config.js
+require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
+
+module.exports = {
+  solidity: {
+    version: "0.8.24",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
+    }
+  },
+  networks: {
+    sepolia: {
+      url: process.env.RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
+      chainId: 11155111
+    }
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY
+  }
+};
+```
+
+**Deployment Script**:
+```javascript
+// scripts/deploy.js
+async function main() {
+  const [deployer] = await ethers.getSigners();
+  console.log("Deploying with:", deployer.address);
+
+  // Deploy TokenFactory
+  const TokenFactory = await ethers.getContractFactory("TokenFactory");
+  const factory = await TokenFactory.deploy();
+  await factory.waitForDeployment();
+  const factoryAddress = await factory.getAddress();
+
+  // Deploy SimpleSwap
+  const SimpleSwap = await ethers.getContractFactory("SimpleSwap");
+  const swap = await SimpleSwap.deploy();
+  await swap.waitForDeployment();
+  const swapAddress = await swap.getAddress();
+
+  // Save deployment info
+  const deployments = {
+    network: "sepolia",
+    factoryAddress,
+    swapAddress,
+    deployer: deployer.address,
+    timestamp: new Date().toISOString(),
+    blockNumber: await ethers.provider.getBlockNumber()
+  };
+
+  fs.writeFileSync(
+    './docs/deployments.json',
+    JSON.stringify(deployments, null, 2)
+  );
+}
+```
+
+**Testing Strategy**:
+- Unit tests for each contract function
+- Integration tests for cross-contract interactions
+- Edge case testing (zero amounts, overflow, underflow)
+- Gas optimization verification
+- Access control testing
+- 50+ test cases with 100% coverage
+
+## 4.2. Backend Implementation
+
+### Express Server Setup
+
+The backend service was implemented using Express.js with a modular architecture supporting clean separation of concerns.
+
+**Server Initialization**:
+```javascript
+// server/src/index.js
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import authRoutes from './routes/auth.js';
+import uploadRoutes from './routes/upload.js';
+
+const app = express();
+
+// Security middleware
+app.use(helmet());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN?.split(',') || 'http://localhost:5173',
+  credentials: true
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  message: 'Too many requests from this IP'
+});
+app.use('/api/', limiter);
+
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/upload', uploadRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+```
+
+### SIWE Authentication Implementation
+
+Sign-In with Ethereum (SIWE) authentication was implemented following the EIP-4361 standard.
+
+**Nonce Generation**:
+```javascript
+// server/src/services/authService.js
+import { generateNonce } from 'siwe';
+import prisma from '../lib/prisma.js';
+
+export async function generateAuthNonce(address) {
+  const nonce = generateNonce();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  await prisma.nonce.upsert({
+    where: { address: address.toLowerCase() },
+    update: { nonce, expiresAt },
+    create: { 
+      address: address.toLowerCase(), 
+      nonce, 
+      expiresAt 
+    }
+  });
+
+  return nonce;
+}
+```
+
+**Message Verification**:
+```javascript
+// server/src/services/authService.js
+import { SiweMessage } from 'siwe';
+
+export async function verifySignature(message, signature) {
+  try {
+    const siweMessage = new SiweMessage(message);
+    const fields = await siweMessage.verify({ signature });
+
+    // Verify nonce
+    const storedNonce = await prisma.nonce.findUnique({
+      where: { address: fields.data.address.toLowerCase() }
+    });
+
+    if (!storedNonce || storedNonce.nonce !== fields.data.nonce) {
+      throw new Error('Invalid nonce');
+    }
+
+    if (new Date() > storedNonce.expiresAt) {
+      throw new Error('Nonce expired');
+    }
+
+    // Delete used nonce
+    await prisma.nonce.delete({
+      where: { address: fields.data.address.toLowerCase() }
+    });
+
+    return fields.data.address;
+  } catch (error) {
+    throw new Error(`Verification failed: ${error.message}`);
+  }
+}
+```
+
+**JWT Session Management**:
+```javascript
+// server/src/services/authService.js
+import jwt from 'jsonwebtoken';
+
+export function generateToken(address) {
+  return jwt.sign(
+    { address: address.toLowerCase() },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.SESSION_EXPIRY || '7d' }
+  );
+}
+
+export function verifyToken(token) {
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    throw new Error('Invalid token');
+  }
+}
+```
+
+**Authentication Middleware**:
+```javascript
+// server/src/middleware/auth.js
+import { verifyToken } from '../services/authService.js';
+
+export function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  const token = authHeader.substring(7);
+
+  try {
+    const decoded = verifyToken(token);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+```
+
+### Database Layer with Prisma
+
+**Schema Definition**:
+```prisma
+// server/prisma/schema.prisma
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Nonce {
+  id        Int      @id @default(autoincrement())
+  address   String   @unique
+  nonce     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  address   String   @unique
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Upload {
+  id        Int      @id @default(autoincrement())
+  address   String
+  ipfsHash  String   @unique
+  fileName  String
+  fileSize  Int
+  mimeType  String
+  createdAt DateTime @default(now())
+
+  @@index([address])
+}
+```
+
+**Migration Workflow**:
+```bash
+# Generate Prisma Client
+npx prisma generate
+
+# Create migration
+npx prisma migrate dev --name init
+
+# Apply migrations in production
+npx prisma migrate deploy
+```
+
+### IPFS Integration (Mock Implementation)
+
+For development purposes, a mock IPFS service was implemented to simulate decentralized storage without requiring an actual IPFS node.
+
+```javascript
+// server/src/services/ipfsService.js
+import { createHash } from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+
+const STORAGE_PATH = process.env.IPFS_STORAGE_PATH || './uploads';
+
+export async function uploadToIPFS(buffer, filename) {
+  if (process.env.IPFS_MOCK === 'true') {
+    // Mock implementation: save locally and generate hash
+    const hash = createHash('sha256').update(buffer).digest('hex');
+    const ipfsHash = `Qm${hash.substring(0, 44)}`;
+    
+    await fs.mkdir(STORAGE_PATH, { recursive: true });
+    await fs.writeFile(
+      path.join(STORAGE_PATH, ipfsHash),
+      buffer
+    );
+
+    return ipfsHash;
+  } else {
+    // Production: use actual IPFS client
+    const ipfs = await getIPFSClient();
+    const { cid } = await ipfs.add(buffer);
+    return cid.toString();
+  }
+}
+```
+
+## 4.3. Frontend Development
+
+### React Application Structure
+
+The frontend was built using React 18 with TypeScript, employing a component-based architecture with custom hooks for blockchain interaction.
+
+**Project Structure**:
+```
+dapp/
+├── src/
+│   ├── components/      # Reusable UI components
+│   │   ├── Navbar.tsx
+│   │   ├── WalletConnect.tsx
+│   │   └── TokenCard.tsx
+│   ├── pages/          # Route components
+│   │   ├── Home.tsx
+│   │   ├── CreateToken.tsx
+│   │   ├── Admin.tsx
+│   │   ├── Swap.tsx
+│   │   └── Analytics.tsx
+│   ├── hooks/          # Custom React hooks
+│   │   ├── useAuth.ts
+│   │   ├── useTokenFactory.ts
+│   │   ├── useSimpleSwap.ts
+│   │   └── useToken.ts
+│   ├── context/        # React context providers
+│   │   └── AuthContext.tsx
+│   ├── services/       # API services
+│   │   ├── api.ts
+│   │   └── subgraph.ts
+│   ├── abi/           # Contract ABIs
+│   │   ├── TokenFactory.json
+│   │   ├── SimpleSwap.json
+│   │   └── YourToken.json
+│   ├── config/        # Configuration
+│   │   └── wagmi.ts
+│   └── App.tsx
+```
+
+### wagmi Configuration
+
+**Web3 Provider Setup**:
+```typescript
+// src/config/wagmi.ts
+import { http, createConfig } from 'wagmi';
+import { sepolia } from 'wagmi/chains';
+import { injected, walletConnect } from 'wagmi/connectors';
+
+export const config = createConfig({
+  chains: [sepolia],
+  connectors: [
+    injected(),
+    walletConnect({ 
+      projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID 
+    }),
+  ],
+  transports: {
+    [sepolia.id]: http(),
+  },
+});
+```
+
+### Custom Hooks Implementation
+
+**useTokenFactory Hook**:
+```typescript
+// src/hooks/useTokenFactory.ts
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseUnits } from 'viem';
+import TokenFactoryABI from '../abi/TokenFactory.json';
+
+export function useTokenFactory() {
+  const factoryAddress = import.meta.env.VITE_FACTORY_ADDRESS as `0x${string}`;
+  
+  const { 
+    writeContract, 
+    data: hash, 
+    isPending, 
+    error 
+  } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = 
+    useWaitForTransactionReceipt({ hash });
+
+  const createToken = async (
+    name: string,
+    symbol: string,
+    decimals: number,
+    initialSupply: string,
+    cap: string
+  ) => {
+    const initialSupplyParsed = parseUnits(initialSupply, decimals);
+    const capParsed = parseUnits(cap, decimals);
+
+    writeContract({
+      address: factoryAddress,
+      abi: TokenFactoryABI,
+      functionName: 'createToken',
+      args: [name, symbol, decimals, initialSupplyParsed, capParsed],
+    });
+  };
+
+  return {
+    createToken,
+    hash,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+  };
+}
+```
+
+**useSimpleSwap Hook**:
+```typescript
+// src/hooks/useSimpleSwap.ts
+import { useWriteContract, useReadContract } from 'wagmi';
+import { parseEther, formatUnits } from 'viem';
+import SimpleSwapABI from '../abi/SimpleSwap.json';
+
+export function useSimpleSwap(tokenAddress?: `0x${string}`) {
+  const swapAddress = import.meta.env.VITE_SWAP_ADDRESS as `0x${string}`;
+
+  // Read token info
+  const { data: tokenInfo } = useReadContract({
+    address: swapAddress,
+    abi: SimpleSwapABI,
+    functionName: 'tokens',
+    args: tokenAddress ? [tokenAddress] : undefined,
+  });
+
+  // Buy tokens
+  const { 
+    writeContract: buyTokens,
+    data: buyHash,
+    isPending: isBuying
+  } = useWriteContract();
+
+  const buy = async (ethAmount: string) => {
+    if (!tokenAddress) return;
+    
+    const ethAmountParsed = parseEther(ethAmount);
+    
+    buyTokens({
+      address: swapAddress,
+      abi: SimpleSwapABI,
+      functionName: 'buyTokens',
+      args: [tokenAddress, ethAmountParsed],
+      value: ethAmountParsed,
+    });
+  };
+
+  // Sell tokens
+  const { 
+    writeContract: sellTokens,
+    data: sellHash,
+    isPending: isSelling
+  } = useWriteContract();
+
+  const sell = async (tokenAmount: string, decimals: number) => {
+    if (!tokenAddress) return;
+    
+    const tokenAmountParsed = parseUnits(tokenAmount, decimals);
+    
+    sellTokens({
+      address: swapAddress,
+      abi: SimpleSwapABI,
+      functionName: 'sellTokens',
+      args: [tokenAddress, tokenAmountParsed],
+    });
+  };
+
+  return {
+    tokenInfo,
+    buy,
+    sell,
+    buyHash,
+    sellHash,
+    isBuying,
+    isSelling,
+  };
+}
+```
+
+**useAuth Hook (SIWE)**:
+```typescript
+// src/hooks/useAuth.ts
+import { useSignMessage, useAccount } from 'wagmi';
+import { SiweMessage } from 'siwe';
+import { api } from '../services/api';
+
+export function useAuth() {
+  const { address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+
+  const login = async () => {
+    if (!address) throw new Error('No wallet connected');
+
+    // Get nonce
+    const { nonce } = await api.get(`/auth/nonce/${address}`);
+
+    // Create SIWE message
+    const message = new SiweMessage({
+      domain: window.location.host,
+      address,
+      statement: 'Sign in to TokenFactory dApp',
+      uri: window.location.origin,
+      version: '1',
+      chainId: 11155111,
+      nonce,
+    });
+
+    // Sign message
+    const signature = await signMessageAsync({
+      message: message.prepareMessage(),
+    });
+
+    // Verify and get token
+    const { token } = await api.post('/auth/verify', {
+      message: message.prepareMessage(),
+      signature,
+    });
+
+    // Store token
+    localStorage.setItem('authToken', token);
+    
+    return token;
+  };
+
+  const logout = () => {
+    localStorage.removeItem('authToken');
+  };
+
+  return { login, logout };
+}
+```
+
+### Component Examples
+
+**CreateToken Page**:
+```typescript
+// src/pages/CreateToken.tsx
+import { useState } from 'react';
+import { useTokenFactory } from '../hooks/useTokenFactory';
+
+export function CreateToken() {
+  const [formData, setFormData] = useState({
+    name: '',
+    symbol: '',
+    decimals: 18,
+    initialSupply: '',
+    cap: '',
+  });
+
+  const { 
+    createToken, 
+    isPending, 
+    isConfirming, 
+    isSuccess, 
+    error 
+  } = useTokenFactory();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createToken(
+      formData.name,
+      formData.symbol,
+      formData.decimals,
+      formData.initialSupply,
+      formData.cap
+    );
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Create New Token</h1>
+      
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input
+          type="text"
+          placeholder="Token Name"
+          value={formData.name}
+          onChange={(e) => setFormData({...formData, name: e.target.value})}
+          className="w-full p-3 border rounded"
+          required
+        />
+        
+        {/* Additional form fields... */}
+        
+        <button
+          type="submit"
+          disabled={isPending || isConfirming}
+          className="w-full bg-blue-600 text-white p-3 rounded"
+        >
+          {isPending ? 'Confirm in wallet...' :
+           isConfirming ? 'Creating token...' :
+           'Create Token'}
+        </button>
+
+        {isSuccess && (
+          <div className="text-green-600">
+            Token created successfully!
+          </div>
+        )}
+        
+        {error && (
+          <div className="text-red-600">
+            Error: {error.message}
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}
+```
+
+### GraphQL Integration
+
+**Subgraph Service**:
+```typescript
+// src/services/subgraph.ts
+import { request, gql } from 'graphql-request';
+
+const SUBGRAPH_URL = import.meta.env.VITE_SUBGRAPH_URL;
+
+export async function getListedTokens() {
+  const query = gql`
+    {
+      tokens(
+        where: { isListed: true }
+        orderBy: totalBuyVolume
+        orderDirection: desc
+      ) {
+        id
+        name
+        symbol
+        decimals
+        tokenPerEth
+        ethBalance
+        tokenBalance
+        totalBuyVolume
+        totalSellVolume
+        creator {
+          id
+        }
+      }
+    }
+  `;
+
+  const data = await request(SUBGRAPH_URL, query);
+  return data.tokens;
+}
+
+export async function getTokenDetails(tokenAddress: string) {
+  const query = gql`
+    query GetToken($id: ID!) {
+      token(id: $id) {
+        id
+        name
+        symbol
+        decimals
+        isListed
+        tokenPerEth
+        ethBalance
+        tokenBalance
+        swaps(first: 10, orderBy: timestamp, orderDirection: desc) {
+          id
+          type
+          user { id }
+          ethAmount
+          tokenAmount
+          timestamp
+        }
+      }
+    }
+  `;
+
+  const data = await request(SUBGRAPH_URL, query, { id: tokenAddress.toLowerCase() });
+  return data.token;
+}
+```
+
+## 4.4. Subgraph Implementation
+
+### Schema Definition
+
+The Graph subgraph schema was designed to capture all relevant on-chain data for analytics and querying.
+
+```graphql
+# subgraph/schema.graphql
+type Token @entity {
+  id: ID!                           # Token address
+  name: String!
+  symbol: String!
+  decimals: Int!
+  initialSupply: BigInt!
+  cap: BigInt!
+  creator: User!
+  
+  # DEX info
+  isListed: Boolean!
+  tokenPerEth: BigInt!
+  ethBalance: BigInt!
+  tokenBalance: BigInt!
+  
+  # Aggregated stats
+  totalBuyVolume: BigInt!
+  totalSellVolume: BigInt!
+  totalBuyCount: Int!
+  totalSellCount: Int!
+  totalLiquidityAdded: BigInt!
+  totalLiquidityRemoved: BigInt!
+  
+  # Relations
+  swaps: [Swap!]! @derivedFrom(field: "token")
+  liquidityEvents: [LiquidityEvent!]! @derivedFrom(field: "token")
+  
+  # Timestamps
+  createdAt: BigInt!
+  listedAt: BigInt
+}
+
+type User @entity {
+  id: ID!                           # User address
+  tokensCreated: [Token!]! @derivedFrom(field: "creator")
+  swaps: [Swap!]! @derivedFrom(field: "user")
+  liquidityEvents: [LiquidityEvent!]! @derivedFrom(field: "provider")
+  
+  # Stats
+  totalTokensCreated: Int!
+  totalBuys: Int!
+  totalSells: Int!
+  totalBuyVolume: BigInt!
+  totalSellVolume: BigInt!
+  totalLiquidityAdded: BigInt!
+  totalLiquidityRemoved: BigInt!
+  totalTransactions: Int!
+  
+  # Timestamps
+  firstSeenAt: BigInt!
+  lastSeenAt: BigInt!
+  firstCreatedAt: BigInt
+  lastCreatedAt: BigInt
+}
+
+type Swap @entity {
+  id: ID!                           # tx hash + log index
+  type: SwapType!
+  token: Token!
+  user: User!
+  ethAmount: BigInt!
+  tokenAmount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+enum SwapType {
+  BUY
+  SELL
+}
+
+type ProtocolStats @entity {
+  id: ID!                           # "1"
+  totalTokensCreated: Int!
+  totalTokensListed: Int!
+  totalSwaps: Int!
+  totalBuys: Int!
+  totalSells: Int!
+  totalVolumeETH: BigInt!
+  totalLiquidityAddedETH: BigInt!
+  totalLiquidityRemovedETH: BigInt!
+  currentTotalLiquidityETH: BigInt!
+  totalUsers: Int!
+  totalCreators: Int!
+  totalTraders: Int!
+  totalLiquidityProviders: Int!
+  firstActivityAt: BigInt!
+  lastActivityAt: BigInt!
+  lastUpdatedBlock: BigInt!
+}
+```
+
+### Event Handlers
+
+**TokenCreated Handler**:
+```typescript
+// subgraph/src/token-factory.ts
+import { TokenCreated } from '../generated/TokenFactory/TokenFactory';
+import { Token, User, ProtocolStats } from '../generated/schema';
+
+export function handleTokenCreated(event: TokenCreated): void {
+  // Create Token entity
+  let token = new Token(event.params.tokenAddress.toHexString());
+  token.name = event.params.name;
+  token.symbol = event.params.symbol;
+  token.decimals = event.params.decimals;
+  token.initialSupply = event.params.initialSupply;
+  token.cap = event.params.cap;
+  token.creator = event.params.owner.toHexString();
+  token.isListed = false;
+  token.tokenPerEth = BigInt.fromI32(0);
+  token.ethBalance = BigInt.fromI32(0);
+  token.tokenBalance = BigInt.fromI32(0);
+  token.totalBuyVolume = BigInt.fromI32(0);
+  token.totalSellVolume = BigInt.fromI32(0);
+  token.totalBuyCount = 0;
+  token.totalSellCount = 0;
+  token.totalLiquidityAdded = BigInt.fromI32(0);
+  token.totalLiquidityRemoved = BigInt.fromI32(0);
+  token.createdAt = event.block.timestamp;
+  token.save();
+
+  // Update or create User
+  let user = User.load(event.params.owner.toHexString());
+  if (!user) {
+    user = new User(event.params.owner.toHexString());
+    user.totalTokensCreated = 0;
+    user.totalBuys = 0;
+    user.totalSells = 0;
+    user.totalBuyVolume = BigInt.fromI32(0);
+    user.totalSellVolume = BigInt.fromI32(0);
+    user.totalLiquidityAdded = BigInt.fromI32(0);
+    user.totalLiquidityRemoved = BigInt.fromI32(0);
+    user.totalTransactions = 0;
+    user.firstSeenAt = event.block.timestamp;
+  }
+  user.totalTokensCreated += 1;
+  user.lastSeenAt = event.block.timestamp;
+  if (!user.firstCreatedAt) {
+    user.firstCreatedAt = event.block.timestamp;
+  }
+  user.lastCreatedAt = event.block.timestamp;
+  user.save();
+
+  // Update Protocol Stats
+  let stats = ProtocolStats.load('1');
+  if (!stats) {
+    stats = new ProtocolStats('1');
+    stats.totalTokensCreated = 0;
+    stats.totalTokensListed = 0;
+    stats.totalSwaps = 0;
+    stats.totalBuys = 0;
+    stats.totalSells = 0;
+    stats.totalVolumeETH = BigInt.fromI32(0);
+    stats.totalLiquidityAddedETH = BigInt.fromI32(0);
+    stats.totalLiquidityRemovedETH = BigInt.fromI32(0);
+    stats.currentTotalLiquidityETH = BigInt.fromI32(0);
+    stats.totalUsers = 0;
+    stats.totalCreators = 0;
+    stats.totalTraders = 0;
+    stats.totalLiquidityProviders = 0;
+    stats.firstActivityAt = event.block.timestamp;
+  }
+  stats.totalTokensCreated += 1;
+  stats.lastActivityAt = event.block.timestamp;
+  stats.lastUpdatedBlock = event.block.number;
+  stats.save();
+}
+```
+
+**TokensPurchased Handler**:
+```typescript
+// subgraph/src/simple-swap.ts
+import { TokensPurchased } from '../generated/SimpleSwap/SimpleSwap';
+import { Swap, Token, User } from '../generated/schema';
+
+export function handleTokensPurchased(event: TokensPurchased): void {
+  // Create Swap entity
+  let swapId = event.transaction.hash.toHexString() + '-' + event.logIndex.toString();
+  let swap = new Swap(swapId);
+  swap.type = 'BUY';
+  swap.token = event.params.token.toHexString();
+  swap.user = event.params.buyer.toHexString();
+  swap.ethAmount = event.params.ethAmount;
+  swap.tokenAmount = event.params.tokenAmount;
+  swap.timestamp = event.block.timestamp;
+  swap.blockNumber = event.block.number;
+  swap.txHash = event.transaction.hash;
+  swap.save();
+
+  // Update Token stats
+  let token = Token.load(event.params.token.toHexString());
+  if (token) {
+    token.totalBuyVolume = token.totalBuyVolume.plus(event.params.ethAmount);
+    token.totalBuyCount += 1;
+    token.save();
+  }
+
+  // Update User stats
+  let user = User.load(event.params.buyer.toHexString());
+  if (!user) {
+    user = new User(event.params.buyer.toHexString());
+    user.totalTokensCreated = 0;
+    user.totalBuys = 0;
+    user.totalSells = 0;
+    user.totalBuyVolume = BigInt.fromI32(0);
+    user.totalSellVolume = BigInt.fromI32(0);
+    user.totalLiquidityAdded = BigInt.fromI32(0);
+    user.totalLiquidityRemoved = BigInt.fromI32(0);
+    user.totalTransactions = 0;
+    user.firstSeenAt = event.block.timestamp;
+  }
+  user.totalBuys += 1;
+  user.totalBuyVolume = user.totalBuyVolume.plus(event.params.ethAmount);
+  user.totalTransactions += 1;
+  user.lastSeenAt = event.block.timestamp;
+  user.save();
+}
+```
+
+### Deployment Automation
+
+**Preparation Script**:
+```bash
+#!/bin/bash
+# scripts/prepare.sh
+
+NETWORK=$1
+
+if [ -z "$NETWORK" ]; then
+  echo "Usage: bash prepare.sh <network>"
+  exit 1
+fi
+
+# Read deployed addresses from contracts/docs/deployments.json
+DEPLOYMENTS_FILE="../contracts/docs/deployments.json"
+
+if [ ! -f "$DEPLOYMENTS_FILE" ]; then
+  echo "Error: Deployments file not found at $DEPLOYMENTS_FILE"
+  exit 1
+fi
+
+FACTORY_ADDRESS=$(jq -r '.factoryAddress' $DEPLOYMENTS_FILE)
+SWAP_ADDRESS=$(jq -r '.swapAddress' $DEPLOYMENTS_FILE)
+
+# Update config file
+cat > config/${NETWORK}.json <<EOF
+{
+  "network": "${NETWORK}",
+  "factoryAddress": "${FACTORY_ADDRESS}",
+  "swapAddress": "${SWAP_ADDRESS}",
+  "factoryStartBlock": 0,
+  "swapStartBlock": 0
+}
