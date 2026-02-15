@@ -13,6 +13,7 @@ A production-ready full-stack decentralized application where users can:
 
 - ✅ **Create ERC-20 tokens** via a factory contract (custom decimals, cap, initial supply)
 - ✅ **Swap tokens for ETH** at fixed rates via a simple DEX
+- ✅ **Stake tokens and earn rewards** using Synthetix staking model
 - ✅ **Manage user profiles** with Sign-In with Ethereum (SIWE)
 - ✅ **View analytics** of on-chain activity via The Graph subgraph
 
@@ -821,11 +822,192 @@ npm run db:seed
 
 ---
 
+## 🎁 TokenStaking Module (NEW!)
+
+The TokenStaking module implements a production-ready staking system using the **Synthetix StakingRewards** model - the same battle-tested approach used by major DeFi protocols.
+
+### What is Staking?
+
+Users can **stake** their ERC-20 tokens to earn **rewards** over time. The longer you stake and the more you stake, the more rewards you earn. It's like earning interest on your tokens!
+
+### Quick Start - Deploy Staking Contract
+
+```bash
+cd contracts
+
+# Deploy staking contract (creates new test tokens or uses existing)
+npx hardhat run scripts/deployStaking.ts --network sepolia
+
+# Expected output:
+# 🚀 Deploying TokenStaking contract...
+# 📝 Deploying new test tokens...
+#   ✅ Staking Token deployed to: 0xABC...
+#   ✅ Reward Token deployed to: 0xDEF...
+# 📦 Deploying TokenStaking contract...
+#   ✅ TokenStaking deployed to: 0x123...
+# 💰 Funding staking contract with reward tokens...
+#   ✅ Transferred 10000.0 reward tokens
+# ⏰ Initializing reward distribution...
+#   ✅ Reward distribution initialized
+#      Reward Rate: 0.016534391534 tokens/second
+#      Period Finish: [7 days from now]
+```
+
+### Staking Contract Features
+
+✅ **Stake Tokens**: Deposit tokens to start earning rewards
+✅ **Withdraw Tokens**: Remove your staked tokens anytime
+✅ **Claim Rewards**: Collect accumulated rewards
+✅ **Exit**: Withdraw all stake + claim all rewards in one transaction
+✅ **Fair Distribution**: Rewards distributed proportionally to stake × time
+✅ **Gas Optimized**: Uses Synthetix model (minimal gas costs)
+✅ **Secure**: ReentrancyGuard, SafeERC20, access control
+
+### How Rewards Work
+
+**Reward Formula**:
+```
+Your Rewards = (Your Stake / Total Staked) × Reward Rate × Time Staked
+```
+
+**Example**:
+- Total staked: 10,000 tokens
+- Your stake: 1,000 tokens (10% of total)
+- Reward rate: 10,000 tokens / 7 days
+- Your daily rewards: ~142.86 tokens/day
+
+### Run Staking Tests
+
+```bash
+cd contracts
+
+# Run comprehensive test suite (40+ tests)
+npx hardhat test test/TokenStaking.t.ts
+
+# Expected output:
+# TokenStaking
+#   Deployment
+#     ✓ Should set the correct staking token
+#     ✓ Should set the correct reward token
+#     ✓ Should set the correct owner
+#     ✓ Should initialize with zero total staked
+#   Staking
+#     ✓ Should allow users to stake tokens
+#     ✓ Should transfer staking tokens from user to contract
+#     ✓ Should revert when staking zero amount
+#     ...
+#   Rewards
+#     ✓ Should accumulate rewards over time
+#     ✓ Should distribute rewards proportionally to stake
+#     ✓ Should allow claiming rewards
+#     ...
+# 40+ passing tests
+```
+
+### Using the Staking Contract
+
+#### 1. Stake Tokens
+
+```javascript
+// Approve staking contract
+await stakingToken.approve(stakingAddress, amount);
+
+// Stake tokens
+await staking.stake(ethers.parseEther("100"));
+```
+
+#### 2. Check Your Rewards
+
+```javascript
+const earned = await staking.earned(userAddress);
+console.log("Earned:", ethers.formatEther(earned), "tokens");
+```
+
+#### 3. Claim Rewards
+
+```javascript
+await staking.claimReward();
+```
+
+#### 4. Withdraw Stake
+
+```javascript
+await staking.withdraw(ethers.parseEther("50")); // Partial
+await staking.exit(); // Withdraw all + claim rewards
+```
+
+### Frontend Integration (wagmi)
+
+```typescript
+// Read staked balance
+const { data: staked } = useReadContract({
+  address: STAKING_ADDRESS,
+  abi: stakingABI,
+  functionName: 'balanceOf',
+  args: [userAddress]
+});
+
+// Read earned rewards (auto-refresh every 10s)
+const { data: earned } = useReadContract({
+  address: STAKING_ADDRESS,
+  abi: stakingABI,
+  functionName: 'earned',
+  args: [userAddress],
+  query: { refetchInterval: 10000 }
+});
+
+// Stake tokens
+const { writeContract } = useWriteContract();
+
+writeContract({
+  address: STAKING_ADDRESS,
+  abi: stakingABI,
+  functionName: 'stake',
+  args: [parseEther("100")]
+});
+```
+
+### Configuration Options
+
+Edit `contracts/scripts/deployStaking.ts` to customize:
+
+```typescript
+// Use existing tokens instead of deploying new ones
+const DEPLOY_NEW_TOKENS = false;
+const EXISTING_STAKING_TOKEN = "0x...";
+const EXISTING_REWARD_TOKEN = "0x...";
+
+// Reward configuration
+const INITIAL_REWARD_AMOUNT = ethers.parseEther("10000"); // 10K tokens
+const REWARD_DURATION = 7 * 24 * 60 * 60; // 7 days
+```
+
+### Complete Documentation
+
+For full details on:
+- **Reward Math Explained**: How the Synthetix model works
+- **The Graph Integration**: Subgraph schema and queries
+- **Security Analysis**: Audit checklist and best practices
+- **Gas Optimization**: Storage packing and immutable variables
+
+See: [docs/STAKING_MODULE.md](./docs/STAKING_MODULE.md)
+
+### Why This Strengthens the Project
+
+✅ **Advanced DeFi Mechanics**: Time-weighted reward distribution
+✅ **Production-Ready**: Battle-tested Synthetix model
+✅ **Research Contribution**: Reward distribution analysis
+✅ **Complete Testing**: 40+ comprehensive test cases
+✅ **Full Documentation**: Math proofs, integration guides
+
+---
+
 ## 📚 Additional Documentation
 
 | Document | Description |
 |----------|-------------|
 | [contracts/README.md](./contracts/README.md) | Smart contracts deep dive |
+| [docs/STAKING_MODULE.md](./docs/STAKING_MODULE.md) | **TokenStaking complete guide** (reward math, frontend, subgraph) |
 | [server/README.md](./server/README.md) | Backend API reference |
 | [dapp/README.md](./dapp/README.md) | Frontend architecture |
 | [subgraph/README.md](./subgraph/README.md) | Subgraph deployment guide |
@@ -947,14 +1129,18 @@ MIT License - see [LICENSE](./LICENSE) file for details
 
 ## 🎉 What You've Built
 
-✅ **3 Smart Contracts** with comprehensive tests (50+)
+✅ **4 Smart Contracts** with comprehensive tests (90+)
+  - TokenFactory for creating ERC-20 tokens
+  - SimpleSwap for fixed-rate token exchange
+  - YourToken (ERC-20 implementation)
+  - **TokenStaking** for earning rewards (Synthetix model) 🆕
 ✅ **Backend API** with SIWE authentication
 ✅ **React Frontend** with 7 pages and wallet integration
 ✅ **The Graph Subgraph** for real-time analytics
 ✅ **Docker Setup** for easy deployment
 ✅ **Full Documentation** for every component
 
-**Total**: 130+ files, 7,000+ lines of production-ready code
+**Total**: 140+ files, 9,000+ lines of production-ready code
 
 ---
 

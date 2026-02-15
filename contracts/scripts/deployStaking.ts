@@ -1,18 +1,24 @@
-const hre = require("hardhat");
-const { ethers } = require("hardhat");
+import { ethers } from "hardhat";
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Deployment script for TokenStaking contract
  *
  * Usage:
- *   npx hardhat run scripts/deployStaking.js --network sepolia
+ *   npx hardhat run scripts/deployStaking.ts --network sepolia
+ *   npx hardhat run scripts/deployStaking.ts --network localhost
  */
 
 async function main() {
   const [deployer] = await ethers.getSigners();
+  const network = await ethers.provider.getNetwork();
 
-  console.log("Deploying TokenStaking contract with account:", deployer.address);
-  console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "ETH");
+  console.log("🚀 Deploying TokenStaking contract...\n");
+  console.log("📋 Deployment Info:");
+  console.log("  Network:", network.name, `(chainId: ${network.chainId})`);
+  console.log("  Deployer:", deployer.address);
+  console.log("  Balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "ETH\n");
 
   // ============================================
   // CONFIGURATION - UPDATE THESE VALUES
@@ -29,20 +35,20 @@ async function main() {
   const INITIAL_REWARD_AMOUNT = ethers.parseEther("10000"); // 10,000 tokens
   const REWARD_DURATION = 7 * 24 * 60 * 60; // 7 days
 
-  let stakingTokenAddress;
-  let rewardTokenAddress;
+  let stakingTokenAddress: string;
+  let rewardTokenAddress: string;
 
   // ============================================
   // STEP 1: Deploy or use existing tokens
   // ============================================
 
   if (DEPLOY_NEW_TOKENS) {
-    console.log("\n📝 Deploying new test tokens...");
+    console.log("📝 Deploying new test tokens...\n");
 
     const YourToken = await ethers.getContractFactory("YourToken");
 
     // Deploy staking token
-    console.log("Deploying Staking Token...");
+    console.log("  Deploying Staking Token...");
     const stakingToken = await YourToken.deploy(
       "Staking Token",
       "STK",
@@ -53,10 +59,10 @@ async function main() {
     );
     await stakingToken.waitForDeployment();
     stakingTokenAddress = await stakingToken.getAddress();
-    console.log("✅ Staking Token deployed to:", stakingTokenAddress);
+    console.log("  ✅ Staking Token deployed to:", stakingTokenAddress);
 
     // Deploy reward token (can use same token or different)
-    console.log("Deploying Reward Token...");
+    console.log("  Deploying Reward Token...");
     const rewardToken = await YourToken.deploy(
       "Reward Token",
       "RWD",
@@ -67,20 +73,20 @@ async function main() {
     );
     await rewardToken.waitForDeployment();
     rewardTokenAddress = await rewardToken.getAddress();
-    console.log("✅ Reward Token deployed to:", rewardTokenAddress);
+    console.log("  ✅ Reward Token deployed to:", rewardTokenAddress);
   } else {
-    console.log("\n📝 Using existing tokens...");
+    console.log("📝 Using existing tokens...");
     stakingTokenAddress = EXISTING_STAKING_TOKEN;
     rewardTokenAddress = EXISTING_REWARD_TOKEN;
-    console.log("Staking Token:", stakingTokenAddress);
-    console.log("Reward Token:", rewardTokenAddress);
+    console.log("  Staking Token:", stakingTokenAddress);
+    console.log("  Reward Token:", rewardTokenAddress);
   }
 
   // ============================================
   // STEP 2: Deploy TokenStaking contract
   // ============================================
 
-  console.log("\n🚀 Deploying TokenStaking contract...");
+  console.log("\n📦 Deploying TokenStaking contract...");
 
   const TokenStaking = await ethers.getContractFactory("TokenStaking");
   const staking = await TokenStaking.deploy(
@@ -92,7 +98,7 @@ async function main() {
   await staking.waitForDeployment();
   const stakingAddress = await staking.getAddress();
 
-  console.log("✅ TokenStaking deployed to:", stakingAddress);
+  console.log("  ✅ TokenStaking deployed to:", stakingAddress);
 
   // ============================================
   // STEP 3: Fund staking contract with rewards
@@ -106,7 +112,7 @@ async function main() {
   const transferTx = await rewardToken.transfer(stakingAddress, INITIAL_REWARD_AMOUNT);
   await transferTx.wait();
 
-  console.log("✅ Transferred", ethers.formatEther(INITIAL_REWARD_AMOUNT), "reward tokens to staking contract");
+  console.log("  ✅ Transferred", ethers.formatEther(INITIAL_REWARD_AMOUNT), "reward tokens to staking contract");
 
   // ============================================
   // STEP 4: Initialize reward distribution
@@ -120,23 +126,9 @@ async function main() {
   const rewardRate = await staking.rewardRate();
   const periodFinish = await staking.periodFinish();
 
-  console.log("✅ Reward distribution initialized");
-  console.log("   Reward Rate:", ethers.formatEther(rewardRate), "tokens/second");
-  console.log("   Period Finish:", new Date(Number(periodFinish) * 1000).toLocaleString());
-
-  // ============================================
-  // STEP 5: Verify contracts (optional)
-  // ============================================
-
-  console.log("\n🔍 Contract verification (run these commands):");
-  console.log("─".repeat(80));
-
-  if (DEPLOY_NEW_TOKENS) {
-    console.log(`npx hardhat verify --network sepolia ${stakingTokenAddress} "Staking Token" "STK" 18 "${ethers.parseEther("1000000")}" "${ethers.parseEther("10000000")}" "${deployer.address}"`);
-    console.log(`npx hardhat verify --network sepolia ${rewardTokenAddress} "Reward Token" "RWD" 18 "${ethers.parseEther("1000000")}" "${ethers.parseEther("10000000")}" "${deployer.address}"`);
-  }
-
-  console.log(`npx hardhat verify --network sepolia ${stakingAddress} "${stakingTokenAddress}" "${rewardTokenAddress}" "${deployer.address}"`);
+  console.log("  ✅ Reward distribution initialized");
+  console.log("     Reward Rate:", ethers.formatEther(rewardRate), "tokens/second");
+  console.log("     Period Finish:", new Date(Number(periodFinish) * 1000).toLocaleString());
 
   // ============================================
   // SUMMARY
@@ -145,7 +137,7 @@ async function main() {
   console.log("\n" + "=".repeat(80));
   console.log("📋 DEPLOYMENT SUMMARY");
   console.log("=".repeat(80));
-  console.log("Network:", hre.network.name);
+  console.log("Network:", network.name, `(chainId: ${network.chainId})`);
   console.log("Deployer:", deployer.address);
   console.log("\nContracts:");
   console.log("  Staking Token:", stakingTokenAddress);
@@ -158,9 +150,9 @@ async function main() {
   console.log("=".repeat(80));
 
   // Save deployment info to file
-  const fs = require("fs");
   const deploymentInfo = {
-    network: hre.network.name,
+    network: network.name,
+    chainId: Number(network.chainId),
     deployer: deployer.address,
     timestamp: new Date().toISOString(),
     contracts: {
@@ -176,12 +168,32 @@ async function main() {
     },
   };
 
-  fs.writeFileSync(
-    `deployment-staking-${hre.network.name}.json`,
-    JSON.stringify(deploymentInfo, null, 2)
-  );
+  const docsPath = path.join(__dirname, "../../docs");
+  if (!fs.existsSync(docsPath)) {
+    fs.mkdirSync(docsPath, { recursive: true });
+  }
 
-  console.log(`\n💾 Deployment info saved to: deployment-staking-${hre.network.name}.json`);
+  const filename = `deployment-staking-${network.name}.json`;
+  const filepath = path.join(docsPath, filename);
+
+  fs.writeFileSync(filepath, JSON.stringify(deploymentInfo, null, 2));
+
+  console.log(`\n💾 Deployment info saved to: docs/${filename}`);
+
+  // ============================================
+  // VERIFICATION COMMANDS
+  // ============================================
+
+  console.log("\n🔍 Contract verification commands:");
+  console.log("─".repeat(80));
+
+  if (DEPLOY_NEW_TOKENS) {
+    console.log(`npx hardhat verify --network ${network.name} ${stakingTokenAddress} "Staking Token" "STK" 18 "${ethers.parseEther("1000000")}" "${ethers.parseEther("10000000")}" "${deployer.address}"`);
+    console.log(`npx hardhat verify --network ${network.name} ${rewardTokenAddress} "Reward Token" "RWD" 18 "${ethers.parseEther("1000000")}" "${ethers.parseEther("10000000")}" "${deployer.address}"`);
+  }
+
+  console.log(`npx hardhat verify --network ${network.name} ${stakingAddress} "${stakingTokenAddress}" "${rewardTokenAddress}" "${deployer.address}"`);
+  console.log("─".repeat(80));
 }
 
 main()
