@@ -180,16 +180,7 @@ export function CreateToken() {
       </div>
 
       {/* Info Card */}
-      <div className="card mt-6 bg-blue-50">
-        <h3 className="font-semibold mb-2">💡 What happens next?</h3>
-        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
-          <li>Your token contract will be deployed to Sepolia testnet</li>
-          <li>Initial supply will be minted to your wallet</li>
-          <li>You can find your token in the "Balances" page</li>
-          <li>As the owner, you can mint more tokens (up to the cap)</li>
-          <li>Go to "Admin" to list your token on the DEX</li>
-        </ol>
-      </div>
+
     </div>
   );
 }

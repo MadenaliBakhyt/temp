@@ -4,7 +4,7 @@
 """
 Token entity representing an ERC-20 token created by the factory
 """
-type Token @entity {
+type Token @entity(immutable: false) {
   id: ID! # Token address
   name: String!
   symbol: String!
@@ -40,7 +40,7 @@ type Token @entity {
 """
 User entity representing a wallet address that interacts with the protocol
 """
-type User @entity {
+type User @entity(immutable: false) {
   id: ID! # Wallet address (lowercase)
 
   # Creation stats
@@ -70,7 +70,7 @@ type User @entity {
 """
 Swap entity representing a buy or sell transaction on SimpleSwap
 """
-type Swap @entity {
+type Swap @entity(immutable: true) {
   id: ID! # Transaction hash + log index
   token: Token!
   user: User!
@@ -93,7 +93,7 @@ enum SwapType {
 """
 LiquidityEvent entity representing liquidity additions or removals
 """
-type LiquidityEvent @entity {
+type LiquidityEvent @entity(immutable: true) {
   id: ID! # Transaction hash + log index
   token: Token!
   provider: User!
@@ -118,7 +118,7 @@ enum LiquidityEventType {
 """
 Protocol-wide statistics (singleton entity with ID = "1")
 """
-type ProtocolStats @entity {
+type ProtocolStats @entity(immutable: false) {
   id: ID! # Always "1"
 
   # Token stats
@@ -152,7 +152,7 @@ type ProtocolStats @entity {
 """
 Daily aggregated statistics
 """
-type DailyStats @entity {
+type DailyStats @entity(immutable: false) {
   id: ID! # Day ID (timestamp / 86400)
   date: Int! # Unix timestamp at start of day
 

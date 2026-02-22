@@ -29,7 +29,7 @@ export function Profile() {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="card text-center">
-          <div className="text-4xl mb-4">🔐</div>
+          <div className="text-4xl mb-4"></div>
           <h2 className="text-2xl font-bold mb-4">Sign In Required</h2>
           <p className="text-gray-600 mb-6">
             Sign in with Ethereum to manage your profile.

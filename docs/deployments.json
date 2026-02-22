@@ -18,17 +18,16 @@
   "sepolia-11155111": {
     "network": "sepolia",
     "chainId": 11155111,
-    "deployer": "0x...",
-    "timestamp": "",
+    "deployer": "0x09764Df02E4B03aabe612983d5fC360C54cf966C",
+    "timestamp": "2026-01-09T13:25:13.264Z",
     "contracts": {
       "TokenFactory": {
-        "address": "0x..."
+        "address": "0x6f4a72f532833a02f129dffECbB927b1F58e94C1"
       },
       "SimpleSwap": {
-        "address": "0x...",
-        "owner": "0x..."
+        "address": "0xA9900799479A1BA12c239B4aAAA3C2a64b46267f",
+        "owner": "0x09764Df02E4B03aabe612983d5fC360C54cf966C"
       }
-    },
-    "note": "Run 'npm run deploy:sepolia' to populate this"
+    }
   }
 }

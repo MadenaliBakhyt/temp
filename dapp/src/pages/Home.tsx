@@ -36,7 +36,7 @@ export function Home() {
       {/* Features Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
         <Link to="/create" className="card hover:shadow-lg transition-shadow">
-          <div className="text-4xl mb-4">🏭</div>
+          <div className="text-4xl mb-4"></div>
           <h3 className="text-xl font-bold mb-2">Create Tokens</h3>
           <p className="text-gray-600">
             Deploy your own ERC-20 tokens with custom supply, decimals, and cap.
@@ -44,7 +44,7 @@ export function Home() {
         </Link>
 
         <Link to="/swap" className="card hover:shadow-lg transition-shadow">
-          <div className="text-4xl mb-4">🔄</div>
+          <div className="text-4xl mb-4"></div>
           <h3 className="text-xl font-bold mb-2">Swap Tokens</h3>
           <p className="text-gray-600">
             Trade tokens for ETH at fixed rates on our simple DEX.
@@ -52,7 +52,7 @@ export function Home() {
         </Link>
 
         <Link to="/balances" className="card hover:shadow-lg transition-shadow">
-          <div className="text-4xl mb-4">💰</div>
+          <div className="text-4xl mb-4"></div>
           <h3 className="text-xl font-bold mb-2">View Balances</h3>
           <p className="text-gray-600">
             Check your ETH and token balances, manage approvals.
@@ -60,7 +60,7 @@ export function Home() {
         </Link>
 
         <Link to="/admin" className="card hover:shadow-lg transition-shadow">
-          <div className="text-4xl mb-4">⚙️</div>
+          <div className="text-4xl mb-4"></div>
           <h3 className="text-xl font-bold mb-2">Admin Panel</h3>
           <p className="text-gray-600">
             List tokens, set rates, and manage liquidity (owner only).
@@ -68,7 +68,7 @@ export function Home() {
         </Link>
 
         <Link to="/profile" className="card hover:shadow-lg transition-shadow">
-          <div className="text-4xl mb-4">👤</div>
+          <div className="text-4xl mb-4"></div>
           <h3 className="text-xl font-bold mb-2">User Profile</h3>
           <p className="text-gray-600">
             Sign in with Ethereum and manage your profile.
@@ -76,7 +76,7 @@ export function Home() {
         </Link>
 
         <Link to="/analytics" className="card hover:shadow-lg transition-shadow">
-          <div className="text-4xl mb-4">📊</div>
+          <div className="text-4xl mb-4"></div>
           <h3 className="text-xl font-bold mb-2">Analytics</h3>
           <p className="text-gray-600">
             View on-chain activity and market statistics.
@@ -85,31 +85,7 @@ export function Home() {
       </div>
 
       {/* Tech Stack */}
-      <div className="card bg-gradient-to-br from-primary-50 to-blue-50">
-        <h2 className="text-2xl font-bold mb-6 text-center">Built With</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          <div>
-            <div className="text-3xl mb-2">⚡</div>
-            <div className="font-semibold">Solidity 0.8.24</div>
-            <div className="text-sm text-gray-600">Smart Contracts</div>
-          </div>
-          <div>
-            <div className="text-3xl mb-2">⚒️</div>
-            <div className="font-semibold">Hardhat</div>
-            <div className="text-sm text-gray-600">Development</div>
-          </div>
-          <div>
-            <div className="text-3xl mb-2">⚛️</div>
-            <div className="font-semibold">React + wagmi</div>
-            <div className="text-sm text-gray-600">Frontend</div>
-          </div>
-          <div>
-            <div className="text-3xl mb-2">📈</div>
-            <div className="font-semibold">The Graph</div>
-            <div className="text-sm text-gray-600">Indexing</div>
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 }

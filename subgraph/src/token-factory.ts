@@ -17,7 +17,7 @@ import {
  */
 export function handleTokenCreated(event: TokenCreated): void {
   let tokenAddress = event.params.token;
-  let creator = event.params.creator;
+  let creator = event.params.owner;
 
   // Load token contract to get additional info
   let tokenContract = YourToken.bind(tokenAddress);

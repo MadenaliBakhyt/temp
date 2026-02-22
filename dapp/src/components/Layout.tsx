@@ -68,31 +68,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="container mx-auto px-4 py-6 text-center text-sm text-gray-600">
-          <p>
-            Built with ❤️ using{' '}
-            <a href="https://soliditylang.org" className="text-primary-600 hover:underline">
-              Solidity
-            </a>
-            ,{' '}
-            <a href="https://hardhat.org" className="text-primary-600 hover:underline">
-              Hardhat
-            </a>
-            ,{' '}
-            <a href="https://wagmi.sh" className="text-primary-600 hover:underline">
-              wagmi
-            </a>
-            , and{' '}
-            <a href="https://thegraph.com" className="text-primary-600 hover:underline">
-              The Graph
-            </a>
-          </p>
-          <p className="mt-2 text-xs">
-            ⚠️ <strong>TESTNET ONLY</strong> - Sepolia Network
-          </p>
-        </div>
-      </footer>
+
     </div>
   );
 }

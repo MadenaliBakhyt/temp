@@ -54,15 +54,15 @@ dataSources:
         - name: YourToken
           file: ../contracts/abis/YourToken.json
       eventHandlers:
-        - event: Listed(indexed address,uint256,uint256,uint256)
+        - event: Listed(indexed address,uint256,uint256)
           handler: handleListed
-        - event: Delisted(indexed address,uint256,uint256)
-          handler: handleDelisted
-        - event: LiquidityAdded(indexed address,indexed address,uint256,uint256)
+        - event: Unlisted(indexed address)
+          handler: handleUnlisted
+        - event: LiquidityAdded(indexed address,uint256,uint256)
           handler: handleLiquidityAdded
-        - event: LiquidityRemoved(indexed address,indexed address,uint256,uint256)
-          handler: handleLiquidityRemoved
-        - event: RateUpdated(indexed address,uint256,uint256)
+        - event: LiquidityWithdrawn(indexed address,uint256,uint256)
+          handler: handleLiquidityWithdrawn
+        - event: RateUpdated(indexed address,uint256)
           handler: handleRateUpdated
         - event: Bought(indexed address,indexed address,uint256,uint256)
           handler: handleBought

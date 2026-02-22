@@ -1,13 +1,12 @@
 #!/bin/bash
-
 # Subgraph preparation script
-# This script reads deployed contract addresses and prepares the subgraph configuration
+# Reads deployed contract addresses and prepares subgraph configuration
 
 set -e
 
 NETWORK=${1:-sepolia}
 CONFIG_FILE="config/${NETWORK}.json"
-DEPLOYMENTS_FILE="../contracts/docs/deployments.json"
+DEPLOYMENTS_FILE="../docs/deployments.json"
 
 echo "📋 Preparing subgraph for network: $NETWORK"
 
@@ -18,25 +17,63 @@ if [ ! -f "$DEPLOYMENTS_FILE" ]; then
   exit 1
 fi
 
-# Extract addresses and start blocks from deployments file
-FACTORY_ADDRESS=$(jq -r ".${NETWORK}.TokenFactory.address" "$DEPLOYMENTS_FILE")
-SWAP_ADDRESS=$(jq -r ".${NETWORK}.SimpleSwap.address" "$DEPLOYMENTS_FILE")
-FACTORY_START_BLOCK=$(jq -r ".${NETWORK}.TokenFactory.blockNumber" "$DEPLOYMENTS_FILE")
-SWAP_START_BLOCK=$(jq -r ".${NETWORK}.SimpleSwap.blockNumber" "$DEPLOYMENTS_FILE")
+# Detect the correct key in deployments.json
+# Your deployments.json uses keys like: "sepolia-11155111"
+CHAIN_ID_DEFAULT=""
+case "$NETWORK" in
+  sepolia) CHAIN_ID_DEFAULT="11155111" ;;
+  goerli)  CHAIN_ID_DEFAULT="5" ;;
+  localhost) CHAIN_ID_DEFAULT="31337" ;;
+  *) CHAIN_ID_DEFAULT="" ;;
+esac
 
-# Validate addresses
-if [ "$FACTORY_ADDRESS" = "null" ] || [ "$SWAP_ADDRESS" = "null" ]; then
-  echo "❌ Contract addresses not found in deployments file"
+DEPLOY_KEY=""
+if [ -n "$CHAIN_ID_DEFAULT" ]; then
+  DEPLOY_KEY="${NETWORK}-${CHAIN_ID_DEFAULT}"
+fi
+
+# If key not found, try fallback: find first key that matches "${NETWORK}-"
+if ! jq -e ".\"${DEPLOY_KEY}\"" "$DEPLOYMENTS_FILE" >/dev/null 2>&1; then
+  DEPLOY_KEY=$(jq -r "keys[] | select(startswith(\"${NETWORK}-\"))" "$DEPLOYMENTS_FILE" | head -n 1)
+fi
+
+if [ -z "$DEPLOY_KEY" ] || [ "$DEPLOY_KEY" = "null" ]; then
+  echo "❌ Could not find deployments entry for network '$NETWORK' in $DEPLOYMENTS_FILE"
+  echo "   Expected a key like '${NETWORK}-<chainId>' (e.g., 'sepolia-11155111')"
+  echo "   Available keys:"
+  jq -r 'keys[]' "$DEPLOYMENTS_FILE" | sed 's/^/   - /'
   exit 1
 fi
 
-echo "✅ Found TokenFactory: $FACTORY_ADDRESS (block $FACTORY_START_BLOCK)"
-echo "✅ Found SimpleSwap: $SWAP_ADDRESS (block $SWAP_START_BLOCK)"
+echo "🔎 Using deployments key: $DEPLOY_KEY"
+
+# Extract addresses from your deployments.json structure
+FACTORY_ADDRESS=$(jq -r ".\"${DEPLOY_KEY}\".contracts.TokenFactory.address" "$DEPLOYMENTS_FILE")
+SWAP_ADDRESS=$(jq -r ".\"${DEPLOY_KEY}\".contracts.SimpleSwap.address" "$DEPLOYMENTS_FILE")
+
+# Try to get start blocks if present (not present in your file -> fallback to 0)
+FACTORY_START_BLOCK=$(jq -r ".\"${DEPLOY_KEY}\".contracts.TokenFactory.blockNumber // .\"${DEPLOY_KEY}\".TokenFactory.blockNumber // 0" "$DEPLOYMENTS_FILE")
+SWAP_START_BLOCK=$(jq -r ".\"${DEPLOY_KEY}\".contracts.SimpleSwap.blockNumber // .\"${DEPLOY_KEY}\".SimpleSwap.blockNumber // 0" "$DEPLOYMENTS_FILE")
+
+# Validate addresses
+if [ -z "$FACTORY_ADDRESS" ] || [ "$FACTORY_ADDRESS" = "null" ] || \
+   [ -z "$SWAP_ADDRESS" ] || [ "$SWAP_ADDRESS" = "null" ]; then
+  echo "❌ Contract addresses not found in deployments file"
+  echo "   Looked for:"
+  echo "   - .\"${DEPLOY_KEY}\".contracts.TokenFactory.address"
+  echo "   - .\"${DEPLOY_KEY}\".contracts.SimpleSwap.address"
+  exit 1
+fi
+
+echo "✅ Found TokenFactory: $FACTORY_ADDRESS (start block $FACTORY_START_BLOCK)"
+echo "✅ Found SimpleSwap:   $SWAP_ADDRESS (start block $SWAP_START_BLOCK)"
 
 # Update config file
+mkdir -p "$(dirname "$CONFIG_FILE")"
 cat > "$CONFIG_FILE" <<EOF
 {
   "network": "$NETWORK",
+  "deploymentsKey": "$DEPLOY_KEY",
   "factoryAddress": "$FACTORY_ADDRESS",
   "swapAddress": "$SWAP_ADDRESS",
   "factoryStartBlock": $FACTORY_START_BLOCK,

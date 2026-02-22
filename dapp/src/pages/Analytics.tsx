@@ -46,19 +46,7 @@ export function Analytics() {
       </div>
 
       {/* Placeholder */}
-      <div className="card text-center py-12">
-        <div className="text-6xl mb-4">📈</div>
-        <h2 className="text-2xl font-bold mb-2">Analytics Coming Soon</h2>
-        <p className="text-gray-600 max-w-md mx-auto">
-          Once The Graph subgraph is deployed and configured, you'll see detailed analytics here including:
-        </p>
-        <ul className="text-left max-w-md mx-auto mt-4 space-y-2 text-gray-600">
-          <li>• Top tokens by volume</li>
-          <li>• Recent trades</li>
-          <li>• Market statistics</li>
-          <li>• User activity summary</li>
-        </ul>
-      </div>
+
     </div>
   );
 }

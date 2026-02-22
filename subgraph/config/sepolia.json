@@ -1,7 +1,8 @@
 {
   "network": "sepolia",
-  "factoryAddress": "0x0000000000000000000000000000000000000000",
-  "swapAddress": "0x0000000000000000000000000000000000000000",
+  "deploymentsKey": "sepolia-11155111",
+  "factoryAddress": "0x6f4a72f532833a02f129dffECbB927b1F58e94C1",
+  "swapAddress": "0xA9900799479A1BA12c239B4aAAA3C2a64b46267f",
   "factoryStartBlock": 0,
   "swapStartBlock": 0
 }

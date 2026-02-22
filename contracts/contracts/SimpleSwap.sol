@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+               // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -31,7 +31,7 @@ contract SimpleSwap is Ownable, ReentrancyGuard {
     // Events
     event Listed(address indexed token, uint256 tokenPerEth, uint256 minEthLiquidity);
     event Unlisted(address indexed token);
-    event RateUpdated(address indexed token, uint256 newTokenPerEth);
+    event RateUpdated(address indexed token, uint256 newTokenPerE  th);
     event Bought(address indexed buyer, address indexed token, uint256 ethIn, uint256 tokensOut);
     event Sold(address indexed seller, address indexed token, uint256 tokensIn, uint256 ethOut);
     event LiquidityAdded(address indexed token, uint256 tokenAmount, uint256 ethAmount);
