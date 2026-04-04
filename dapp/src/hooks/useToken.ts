@@ -83,6 +83,7 @@ export function useTokenApprove() {
       abi: YourTokenAbi.abi,
       functionName: 'approve',
       args: [spender, amount],
+      gas: 100000n,
     });
   }
 

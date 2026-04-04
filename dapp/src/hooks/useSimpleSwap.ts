@@ -15,6 +15,7 @@ export function useSimpleSwap() {
       functionName: 'buyToken',
       args: [tokenAddress],
       value: parseEther(ethAmount),
+      gas: 200000n,
     });
   }
 
@@ -24,6 +25,7 @@ export function useSimpleSwap() {
       abi: SimpleSwapAbi.abi,
       functionName: 'sellToken',
       args: [tokenAddress, amount],
+      gas: 200000n,
     });
   }
 
@@ -90,6 +92,7 @@ export function useSwapAdmin() {
       abi: SimpleSwapAbi.abi,
       functionName: 'listToken',
       args: [token, tokenPerEth, minEthLiquidity],
+      gas: 200000n,
     });
   }
 
@@ -99,6 +102,7 @@ export function useSwapAdmin() {
       abi: SimpleSwapAbi.abi,
       functionName: 'setRate',
       args: [token, newTokenPerEth],
+      gas: 100000n,
     });
   }
 
