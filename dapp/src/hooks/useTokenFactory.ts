@@ -19,6 +19,7 @@ export function useTokenFactory() {
       abi: TokenFactoryAbi.abi,
       functionName: 'createToken',
       args: [name, symbol, decimals, initialSupply, cap],
+      gas: 3000000n,
     });
   }
 
