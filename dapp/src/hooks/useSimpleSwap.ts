@@ -109,6 +109,7 @@ export function useSwapAdmin() {
       functionName: 'addLiquidity',
       args: [token, tokenAmount],
       value: parseEther(ethAmount),
+      gas: 300000n,
     });
   }
 
