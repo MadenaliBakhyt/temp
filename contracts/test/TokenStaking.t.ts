@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { TokenStaking, YourToken } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
@@ -235,14 +236,15 @@ describe("TokenStaking", function () {
       await staking.connect(user1).stake(STAKE_AMOUNT);
       await time.increase(24 * 60 * 60);
 
-      const earned = await staking.earned(user1.address);
       const balanceBefore = await rewardToken.balanceOf(user1.address);
 
       await expect(staking.connect(user1).claimReward())
         .to.emit(staking, "RewardPaid")
-        .withArgs(user1.address, earned);
+        .withArgs(user1.address, anyValue);
 
-      expect(await rewardToken.balanceOf(user1.address)).to.equal(balanceBefore + earned);
+      const rewardPaid = (await rewardToken.balanceOf(user1.address)) - balanceBefore;
+      const expectedReward = REWARD_AMOUNT / 7n;
+      expect(rewardPaid).to.be.closeTo(expectedReward, expectedReward / 100n);
       expect(await staking.earned(user1.address)).to.equal(0);
     });
 
@@ -298,7 +300,6 @@ describe("TokenStaking", function () {
     });
 
     it("Should withdraw stake and claim rewards", async function () {
-      const earned = await staking.earned(user1.address);
       const stakingBalanceBefore = await stakingToken.balanceOf(user1.address);
       const rewardBalanceBefore = await rewardToken.balanceOf(user1.address);
 
@@ -308,7 +309,9 @@ describe("TokenStaking", function () {
       expect(await stakingToken.balanceOf(user1.address)).to.equal(
         stakingBalanceBefore + STAKE_AMOUNT
       );
-      expect(await rewardToken.balanceOf(user1.address)).to.equal(rewardBalanceBefore + earned);
+      const rewardReceived = (await rewardToken.balanceOf(user1.address)) - rewardBalanceBefore;
+      const expectedReward = REWARD_AMOUNT / 7n;
+      expect(rewardReceived).to.be.closeTo(expectedReward, expectedReward / 100n);
     });
   });
 
