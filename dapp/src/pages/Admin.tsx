@@ -5,7 +5,7 @@ import { SWAP_ADDRESS } from '@/lib/contracts';
 import SimpleSwapAbi from '@/abi/SimpleSwap.json';
 import { useSwapAdmin } from '@/hooks/useSimpleSwap';
 import { useAllTokens } from '@/hooks/useTokenFactory';
-import { useToken } from '@/hooks/useToken';
+import { useToken, useTokenApprove, useTokenAllowance } from '@/hooks/useToken';
 import { TxToast } from '@/components/TxToast';
 
 export function Admin() {
@@ -21,6 +21,15 @@ export function Admin() {
   const { listToken, setRate, addLiquidity, hash, isPending, isConfirming, isSuccess, error } =
     useSwapAdmin();
 
+  const {
+    approve,
+    hash: approveHash,
+    isPending: isApprovePending,
+    isConfirming: isApproveConfirming,
+    isSuccess: isApproveSuccess,
+    error: approveError,
+  } = useTokenApprove();
+
   const [formData, setFormData] = useState({
     token: '',
     tokenPerEth: '',
@@ -29,6 +38,17 @@ export function Admin() {
     liquidityToken: '',
     liquidityEth: '',
   });
+
+  const liquidityTokenAmount =
+    formData.liquidityToken ? parseUnits(formData.liquidityToken, 18) : 0n;
+
+  const { allowance, refetch: refetchAllowance } = useTokenAllowance(
+    formData.token as Address || undefined,
+    address,
+    SWAP_ADDRESS,
+  );
+
+  const needsApproval = liquidityTokenAmount > 0n && allowance < liquidityTokenAmount;
 
   const isOwner = address && swapOwner && address.toLowerCase() === (swapOwner as string).toLowerCase();
 
@@ -197,22 +217,47 @@ export function Admin() {
               />
             </div>
           </div>
-          <button
-            onClick={() =>
-              addLiquidity(
-                formData.token as Address,
-                parseUnits(formData.liquidityToken, 18),
-                formData.liquidityEth
-              )
-            }
-            disabled={!formData.token || isPending}
-            className="btn btn-primary w-full mt-4"
-          >
-            Add Liquidity
-          </button>
+          <div className="mt-4 flex gap-3">
+            {needsApproval ? (
+              <button
+                onClick={() =>
+                  approve(
+                    formData.token as Address,
+                    SWAP_ADDRESS,
+                    liquidityTokenAmount,
+                  )
+                }
+                disabled={!formData.token || !formData.liquidityToken || isApprovePending || isApproveConfirming}
+                className="btn btn-secondary flex-1"
+              >
+                {isApprovePending || isApproveConfirming ? 'Approving...' : '1. Approve Tokens'}
+              </button>
+            ) : null}
+            <button
+              onClick={() => {
+                addLiquidity(
+                  formData.token as Address,
+                  liquidityTokenAmount,
+                  formData.liquidityEth || '0',
+                );
+                refetchAllowance();
+              }}
+              disabled={!formData.token || isPending || isConfirming || (liquidityTokenAmount > 0n && needsApproval)}
+              className="btn btn-primary flex-1"
+            >
+              {isPending || isConfirming ? 'Adding...' : needsApproval ? '2. Add Liquidity' : 'Add Liquidity'}
+            </button>
+          </div>
         </div>
       </div>
 
+      <TxToast
+        hash={approveHash}
+        isPending={isApprovePending}
+        isConfirming={isApproveConfirming}
+        isSuccess={isApproveSuccess}
+        error={approveError}
+      />
       <TxToast
         hash={hash}
         isPending={isPending}
