@@ -10,8 +10,11 @@ export function ConnectButton() {
     return (
       <button
         onClick={() => disconnect()}
-        className="btn btn-secondary"
+        className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700
+                   text-slate-200 text-xs font-medium rounded border border-slate-700
+                   hover:border-slate-600 transition-colors"
       >
+        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
         {formatAddress(address)}
       </button>
     );
@@ -19,13 +22,14 @@ export function ConnectButton() {
 
   return (
     <div className="flex gap-2">
-      {connectors.map((connector) => (
+      {connectors.slice(0, 1).map((connector) => (
         <button
           key={connector.id}
           onClick={() => connect({ connector })}
-          className="btn btn-primary"
+          className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white
+                     text-xs font-medium rounded transition-colors"
         >
-          Connect {connector.name}
+          Connect Wallet
         </button>
       ))}
     </div>
